@@ -42,23 +42,55 @@ class DatabaseSetup:
             self.conn.close()
         print("🔌 Database connection closed.")
     
+    def check_existing_structure(self):
+        """Check what tables and columns already exist."""
+        print("🔍 Checking existing database structure...")
+        
+        try:
+            # Check if users table exists and what columns it has
+            self.cur.execute("""
+                SELECT column_name, data_type, is_nullable 
+                FROM information_schema.columns 
+                WHERE table_name = 'users' 
+                ORDER BY ordinal_position
+            """)
+            
+            existing_columns = self.cur.fetchall()
+            if existing_columns:
+                print("📋 Existing users table columns:")
+                for col in existing_columns:
+                    print(f"   - {col[0]} ({col[1]}, nullable: {col[2]})")
+                
+                # Check if we have the right column names
+                column_names = [col[0] for col in existing_columns]
+                if 'firstname' in column_names and 'firstName' not in column_names:
+                    print("⚠️  Found 'firstname' column but need 'firstName' - will need to recreate table")
+                    return False
+                elif 'firstName' in column_names:
+                    print("✅ Found correct 'firstName' column structure")
+                    return True
+            else:
+                print("📭 No users table found")
+                return False
+                
+        except Exception as e:
+            print(f"⚠️  Error checking structure: {e}")
+            return False
+    
     def drop_existing_tables(self):
         """Drop all existing tables to start fresh."""
         print("🗑️  Dropping existing tables...")
         
         drop_queries = [
-            "DROP TABLE IF EXISTS users CASCADE",
+            "DROP TABLE IF EXISTS fees CASCADE",
+            "DROP TABLE IF EXISTS events CASCADE",
+            "DROP TABLE IF EXISTS messages CASCADE",
+            "DROP TABLE IF EXISTS attendance CASCADE",
+            "DROP TABLE IF EXISTS grades CASCADE",
+            "DROP TABLE IF EXISTS assignments CASCADE",
             "DROP TABLE IF EXISTS courses CASCADE",
             "DROP TABLE IF EXISTS subjects CASCADE",
-            "DROP TABLE IF EXISTS assignments CASCADE",
-            "DROP TABLE IF EXISTS grades CASCADE",
-            "DROP TABLE IF EXISTS attendance CASCADE",
-            "DROP TABLE IF EXISTS messages CASCADE",
-            "DROP TABLE IF EXISTS events CASCADE",
-            "DROP TABLE IF EXISTS fees CASCADE",
-            "DROP TABLE IF EXISTS students CASCADE",
-            "DROP TABLE IF EXISTS teachers CASCADE",
-            "DROP TABLE IF EXISTS guardians CASCADE"
+            "DROP TABLE IF EXISTS users CASCADE"
         ]
         
         for query in drop_queries:
@@ -75,37 +107,37 @@ class DatabaseSetup:
         """Create new database schema with proper structure."""
         print("🏗️  Creating new database schema...")
         
-        # Create users table (main authentication table)
+        # Create users table (main authentication table) - EXACTLY matching Sequelize model
         users_table = """
         CREATE TABLE users (
             id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-            firstName VARCHAR(50) NOT NULL,
-            lastName VARCHAR(50) NOT NULL,
+            "firstName" VARCHAR(50) NOT NULL,
+            "lastName" VARCHAR(50) NOT NULL,
             email VARCHAR(100) NOT NULL UNIQUE,
             password VARCHAR(255) NOT NULL,
             phone VARCHAR(20),
-            dateOfBirth DATE,
+            "dateOfBirth" DATE,
             gender VARCHAR(10) CHECK (gender IN ('male', 'female', 'other')),
-            profilePicture TEXT,
+            "profilePicture" TEXT,
             role VARCHAR(20) NOT NULL CHECK (role IN ('admin', 'teacher', 'student', 'parent')),
-            isActive BOOLEAN DEFAULT true,
-            isEmailVerified BOOLEAN DEFAULT true,
-            lastLogin TIMESTAMP,
-            loginAttempts INTEGER DEFAULT 0,
-            lockUntil TIMESTAMP,
+            "isActive" BOOLEAN DEFAULT true,
+            "isEmailVerified" BOOLEAN DEFAULT true,
+            "lastLogin" TIMESTAMP,
+            "loginAttempts" INTEGER DEFAULT 0,
+            "lockUntil" TIMESTAMP,
             address JSONB,
-            studentId VARCHAR(20) UNIQUE,
+            "studentId" VARCHAR(20) UNIQUE,
             grade VARCHAR(10),
             section VARCHAR(10),
-            enrollmentDate DATE,
-            graduationDate DATE,
+            "enrollmentDate" DATE,
+            "graduationDate" DATE,
             department VARCHAR(50),
             specialization VARCHAR(100),
-            hireDate DATE,
+            "hireDate" DATE,
             children JSONB,
             permissions JSONB,
-            createdAt TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-            updatedAt TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+            "createdAt" TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+            "updatedAt" TIMESTAMP DEFAULT CURRENT_TIMESTAMP
         );
         """
         
@@ -117,12 +149,12 @@ class DatabaseSetup:
             code VARCHAR(10) NOT NULL UNIQUE,
             description TEXT,
             department VARCHAR(100) NOT NULL,
-            gradeLevel VARCHAR(50) NOT NULL,
-            isActive BOOLEAN DEFAULT true,
+            "gradeLevel" VARCHAR(50) NOT NULL,
+            "isActive" BOOLEAN DEFAULT true,
             color VARCHAR(7) DEFAULT '#3B82F6',
             icon VARCHAR(255) DEFAULT 'book',
-            createdAt TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-            updatedAt TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+            "createdAt" TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+            "updatedAt" TIMESTAMP DEFAULT CURRENT_TIMESTAMP
         );
         """
         
@@ -133,44 +165,44 @@ class DatabaseSetup:
             code VARCHAR(255) NOT NULL UNIQUE,
             title VARCHAR(200) NOT NULL,
             description TEXT NOT NULL,
-            shortDescription VARCHAR(300),
+            "shortDescription" VARCHAR(300),
             credits INTEGER NOT NULL,
             duration INTEGER NOT NULL,
             level VARCHAR(20) NOT NULL CHECK (level IN ('beginner', 'intermediate', 'advanced', 'expert')),
             grade VARCHAR(255) NOT NULL,
             prerequisites JSONB DEFAULT '[]',
             corequisites JSONB DEFAULT '[]',
-            isPrerequisiteFor JSONB DEFAULT '[]',
-            subjectId UUID REFERENCES subjects(id),
+            "isPrerequisiteFor" JSONB DEFAULT '[]',
+            "subjectId" UUID REFERENCES subjects(id),
             category VARCHAR(20) NOT NULL CHECK (category IN ('core', 'elective', 'honors', 'ap', 'ib', 'remedial')),
-            learningObjectives JSONB DEFAULT '[]',
+            "learningObjectives" JSONB DEFAULT '[]',
             syllabus JSONB DEFAULT '[]',
             textbooks JSONB DEFAULT '[]',
             resources JSONB DEFAULT '[]',
-            assessmentMethods JSONB DEFAULT '[]',
-            gradingPolicy JSONB DEFAULT '{"exams":40,"assignments":30,"participation":15,"projects":15}',
-            passingGrade INTEGER DEFAULT 60,
-            maxCapacity INTEGER NOT NULL,
-            currentEnrollment INTEGER DEFAULT 0,
-            waitlistCapacity INTEGER DEFAULT 10,
-            academicYear VARCHAR(255) NOT NULL,
+            "assessmentMethods" JSONB DEFAULT '[]',
+            "gradingPolicy" JSONB DEFAULT '{"exams":40,"assignments":30,"participation":15,"projects":15}',
+            "passingGrade" INTEGER DEFAULT 60,
+            "maxCapacity" INTEGER NOT NULL,
+            "currentEnrollment" INTEGER DEFAULT 0,
+            "waitlistCapacity" INTEGER DEFAULT 10,
+            "academicYear" VARCHAR(255) NOT NULL,
             semester VARCHAR(20) NOT NULL CHECK (semester IN ('fall', 'spring', 'summer', 'winter')),
             schedule JSONB DEFAULT '[]',
-            instructorId UUID NOT NULL REFERENCES users(id),
-            teachingAssistants JSONB DEFAULT '[]',
+            "instructorId" UUID NOT NULL REFERENCES users(id),
+            "teachingAssistants" JSONB DEFAULT '[]',
             status VARCHAR(20) DEFAULT 'draft' CHECK (status IN ('draft', 'active', 'inactive', 'archived')),
-            isPublished BOOLEAN DEFAULT false,
-            enrollmentOpen BOOLEAN DEFAULT true,
-            allowAudit BOOLEAN DEFAULT false,
+            "isPublished" BOOLEAN DEFAULT false,
+            "enrollmentOpen" BOOLEAN DEFAULT true,
+            "allowAudit" BOOLEAN DEFAULT false,
             tuition DECIMAL(10,2) NOT NULL,
-            additionalFees JSONB DEFAULT '[]',
+            "additionalFees" JSONB DEFAULT '[]',
             tags JSONB DEFAULT '[]',
             keywords JSONB DEFAULT '[]',
             featured BOOLEAN DEFAULT false,
             rating JSONB DEFAULT '{"average":0,"count":0}',
             reviews JSONB DEFAULT '[]',
-            createdAt TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-            updatedAt TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+            "createdAt" TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+            "updatedAt" TIMESTAMP DEFAULT CURRENT_TIMESTAMP
         );
         """
         
@@ -180,16 +212,16 @@ class DatabaseSetup:
             id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
             title VARCHAR(200) NOT NULL,
             description TEXT NOT NULL,
-            courseId UUID NOT NULL REFERENCES courses(id),
-            dueDate TIMESTAMP NOT NULL,
-            maxScore INTEGER NOT NULL,
+            "courseId" UUID NOT NULL REFERENCES courses(id),
+            "dueDate" TIMESTAMP NOT NULL,
+            "maxScore" INTEGER NOT NULL,
             weight DECIMAL(5,2) DEFAULT 100.00,
             type VARCHAR(50) DEFAULT 'assignment',
             attachments JSONB DEFAULT '[]',
             rubric JSONB DEFAULT '[]',
-            isPublished BOOLEAN DEFAULT false,
-            createdAt TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-            updatedAt TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+            "isPublished" BOOLEAN DEFAULT false,
+            "createdAt" TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+            "updatedAt" TIMESTAMP DEFAULT CURRENT_TIMESTAMP
         );
         """
         
@@ -197,18 +229,18 @@ class DatabaseSetup:
         grades_table = """
         CREATE TABLE grades (
             id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-            studentId UUID NOT NULL REFERENCES users(id),
-            courseId UUID NOT NULL REFERENCES courses(id),
-            assignmentId UUID REFERENCES assignments(id),
+            "studentId" UUID NOT NULL REFERENCES users(id),
+            "courseId" UUID NOT NULL REFERENCES courses(id),
+            "assignmentId" UUID REFERENCES assignments(id),
             score DECIMAL(5,2) NOT NULL,
-            maxScore INTEGER NOT NULL,
+            "maxScore" INTEGER NOT NULL,
             percentage DECIMAL(5,2) NOT NULL,
-            letterGrade VARCHAR(2),
+            "letterGrade" VARCHAR(2),
             comments TEXT,
-            gradedBy UUID REFERENCES users(id),
-            gradedAt TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-            createdAt TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-            updatedAt TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+            "gradedBy" UUID REFERENCES users(id),
+            "gradedAt" TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+            "createdAt" TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+            "updatedAt" TIMESTAMP DEFAULT CURRENT_TIMESTAMP
         );
         """
         
@@ -216,15 +248,15 @@ class DatabaseSetup:
         attendance_table = """
         CREATE TABLE attendance (
             id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-            studentId UUID NOT NULL REFERENCES users(id),
-            courseId UUID NOT NULL REFERENCES courses(id),
+            "studentId" UUID NOT NULL REFERENCES users(id),
+            "courseId" UUID NOT NULL REFERENCES courses(id),
             date DATE NOT NULL,
             status VARCHAR(20) NOT NULL CHECK (status IN ('present', 'absent', 'late', 'excused')),
             notes TEXT,
-            markedBy UUID REFERENCES users(id),
-            markedAt TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-            createdAt TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-            updatedAt TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+            "markedBy" UUID REFERENCES users(id),
+            "markedAt" TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+            "createdAt" TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+            "updatedAt" TIMESTAMP DEFAULT CURRENT_TIMESTAMP
         );
         """
         
@@ -232,15 +264,15 @@ class DatabaseSetup:
         messages_table = """
         CREATE TABLE messages (
             id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-            senderId UUID NOT NULL REFERENCES users(id),
-            receiverId UUID NOT NULL REFERENCES users(id),
+            "senderId" UUID NOT NULL REFERENCES users(id),
+            "receiverId" UUID NOT NULL REFERENCES users(id),
             subject VARCHAR(200),
             content TEXT NOT NULL,
-            isRead BOOLEAN DEFAULT false,
-            readAt TIMESTAMP,
+            "isRead" BOOLEAN DEFAULT false,
+            "readAt" TIMESTAMP,
             attachments JSONB DEFAULT '[]',
-            createdAt TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-            updatedAt TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+            "createdAt" TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+            "updatedAt" TIMESTAMP DEFAULT CURRENT_TIMESTAMP
         );
         """
         
@@ -250,15 +282,15 @@ class DatabaseSetup:
             id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
             title VARCHAR(200) NOT NULL,
             description TEXT,
-            startDate TIMESTAMP NOT NULL,
-            endDate TIMESTAMP NOT NULL,
+            "startDate" TIMESTAMP NOT NULL,
+            "endDate" TIMESTAMP NOT NULL,
             location VARCHAR(200),
-            organizerId UUID REFERENCES users(id),
+            "organizerId" UUID REFERENCES users(id),
             attendees JSONB DEFAULT '[]',
-            isPublic BOOLEAN DEFAULT true,
+            "isPublic" BOOLEAN DEFAULT true,
             category VARCHAR(50),
-            createdAt TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-            updatedAt TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+            "createdAt" TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+            "updatedAt" TIMESTAMP DEFAULT CURRENT_TIMESTAMP
         );
         """
         
@@ -266,18 +298,18 @@ class DatabaseSetup:
         fees_table = """
         CREATE TABLE fees (
             id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-            studentId UUID NOT NULL REFERENCES users(id),
-            feeType VARCHAR(100) NOT NULL,
+            "studentId" UUID NOT NULL REFERENCES users(id),
+            "feeType" VARCHAR(100) NOT NULL,
             amount DECIMAL(10,2) NOT NULL,
-            dueDate DATE NOT NULL,
-            paidAmount DECIMAL(10,2) DEFAULT 0.00,
-            paidDate DATE,
+            "dueDate" DATE NOT NULL,
+            "paidAmount" DECIMAL(10,2) DEFAULT 0.00,
+            "paidDate" DATE,
             status VARCHAR(20) DEFAULT 'pending' CHECK (status IN ('pending', 'partial', 'paid', 'overdue')),
-            paymentMethod VARCHAR(50),
-            receiptNumber VARCHAR(100),
+            "paymentMethod" VARCHAR(50),
+            "receiptNumber" VARCHAR(100),
             notes TEXT,
-            createdAt TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-            updatedAt TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+            "createdAt" TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+            "updatedAt" TIMESTAMP DEFAULT CURRENT_TIMESTAMP
         );
         """
         
@@ -321,7 +353,7 @@ class DatabaseSetup:
         for subject in subjects_data:
             try:
                 self.cur.execute("""
-                    INSERT INTO subjects (name, code, description, department, gradeLevel, color, icon)
+                    INSERT INTO subjects (name, code, description, department, "gradeLevel", color, icon)
                     VALUES (%s, %s, %s, %s, %s, %s, %s)
                     RETURNING id
                 """, subject)
@@ -392,12 +424,12 @@ class DatabaseSetup:
         created_users = []
         for user_data in demo_users:
             try:
-                # Insert user
+                # Insert user with proper column names
                 self.cur.execute("""
                     INSERT INTO users (
-                        firstName, lastName, email, password, role, phone, 
-                        isEmailVerified, isActive, department, specialization,
-                        studentId, grade, section, enrollmentDate
+                        "firstName", "lastName", email, password, role, phone, 
+                        "isEmailVerified", "isActive", department, specialization,
+                        "studentId", grade, section, "enrollmentDate"
                     ) VALUES (
                         %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s
                     ) RETURNING id, role
@@ -470,9 +502,9 @@ class DatabaseSetup:
             try:
                 self.cur.execute("""
                     INSERT INTO courses (
-                        code, title, description, shortDescription, credits, duration,
-                        level, grade, subjectId, category, maxCapacity, academicYear,
-                        semester, instructorId, tuition
+                        code, title, description, "shortDescription", credits, duration,
+                        level, grade, "subjectId", category, "maxCapacity", "academicYear",
+                        semester, "instructorId", tuition
                     ) VALUES (
                         %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s
                     )
@@ -499,6 +531,14 @@ class DatabaseSetup:
             # Connect to database
             if not self.connect():
                 return False
+            
+            # Check existing structure
+            if self.check_existing_structure():
+                print("⚠️  Database already has correct structure. Do you want to recreate it anyway?")
+                recreate = input("Recreate database? (yes/no): ").strip().lower()
+                if recreate != 'yes':
+                    print("✅ Using existing database structure.")
+                    return True
             
             # Drop existing tables
             self.drop_existing_tables()
@@ -552,6 +592,11 @@ def main():
     if setup.setup_database():
         print("\n✅ Database setup completed successfully!")
         print("🔄 You can now start your application and test the role-based dashboards.")
+        print("\n🔑 Login Credentials:")
+        print("   Admin: admin@school.com / admin123")
+        print("   Teacher: teacher@school.com / teacher123")
+        print("   Student: student@school.com / student123")
+        print("   Parent: parent@school.com / parent123")
     else:
         print("\n❌ Database setup failed. Please check the error messages above.")
 

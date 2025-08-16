@@ -5,6 +5,8 @@ yarn-debug.log*
 yarn-error.log*
 
 # Environment variables
+read_db.py
+db_exports
 .env
 .env.local
 .env.development.local
