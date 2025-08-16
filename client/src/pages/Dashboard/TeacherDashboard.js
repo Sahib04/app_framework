@@ -15,7 +15,8 @@ import {
   Chip,
   Avatar,
   IconButton,
-  Fab
+  Fab,
+  CardActions
 } from '@mui/material';
 import {
   Class,
@@ -29,12 +30,18 @@ import {
   Visibility,
   Person,
   Group,
-  VideoCall
+  VideoCall,
+  Message,
+  Event,
+  Assessment,
+  School
 } from '@mui/icons-material';
 import { useAuth } from '../../contexts/AuthContext';
+import { useNavigate } from 'react-router-dom';
 
 const TeacherDashboard = () => {
   const { user } = useAuth();
+  const navigate = useNavigate();
 
   const stats = {
     totalClasses: 6,
@@ -47,6 +54,74 @@ const TeacherDashboard = () => {
     { id: 1, name: 'Advanced Mathematics', time: '9:00 AM', students: 25, grade: 'A', attendance: 92 },
     { id: 2, name: 'Physics 101', time: '11:00 AM', students: 30, grade: 'B+', attendance: 88 },
     { id: 3, name: 'Calculus II', time: '2:00 PM', students: 20, grade: 'A-', attendance: 95 }
+  ];
+
+  // Feature navigation cards for teachers
+  const featureCards = [
+    {
+      title: 'My Classes',
+      description: 'View and manage your assigned classes and schedules',
+      icon: <Class />,
+      color: '#4CAF50',
+      path: '/classes',
+      stats: `${stats.totalClasses} active classes`
+    },
+    {
+      title: 'Students',
+      description: 'View student profiles, performance, and contact information',
+      icon: <People />,
+      color: '#2196F3',
+      path: '/students',
+      stats: `${stats.totalStudents} students`
+    },
+    {
+      title: 'Assignments',
+      description: 'Create, manage, and grade student assignments',
+      icon: <Assignment />,
+      color: '#FF9800',
+      path: '/assignments',
+      stats: 'Active assignments'
+    },
+    {
+      title: 'Grades',
+      description: 'Record and manage student grades and assessments',
+      icon: <Grade />,
+      color: '#9C27B0',
+      path: '/grades',
+      stats: 'Grade management'
+    },
+    {
+      title: 'Attendance',
+      description: 'Track student attendance and generate reports',
+      icon: <Schedule />,
+      color: '#607D8B',
+      path: '/attendance',
+      stats: `${stats.attendanceRate}% avg attendance`
+    },
+    {
+      title: 'Communication',
+      description: 'Send messages and announcements to students and parents',
+      icon: <Message />,
+      color: '#00BCD4',
+      path: '/messages',
+      stats: 'Active conversations'
+    },
+    {
+      title: 'Events',
+      description: 'View and participate in school events and activities',
+      icon: <Event />,
+      color: '#8BC34A',
+      path: '/events',
+      stats: 'Upcoming events'
+    },
+    {
+      title: 'Reports',
+      description: 'Generate academic and performance reports',
+      icon: <Assessment />,
+      color: '#E91E63',
+      path: '/reports',
+      stats: 'Analytics & insights'
+    }
   ];
 
   const StatCard = ({ title, value, icon, color, subtitle }) => (
@@ -74,6 +149,57 @@ const TeacherDashboard = () => {
     </Card>
   );
 
+  const FeatureCard = ({ title, description, icon, color, path, stats }) => (
+    <Card 
+      sx={{ 
+        height: '100%',
+        cursor: 'pointer',
+        transition: 'all 0.3s ease',
+        '&:hover': {
+          transform: 'translateY(-4px)',
+          boxShadow: 6,
+          '& .feature-icon': {
+            transform: 'scale(1.1)'
+          }
+        }
+      }}
+      onClick={() => navigate(path)}
+    >
+      <CardContent>
+        <Box sx={{ display: 'flex', alignItems: 'center', mb: 2 }}>
+          <Avatar 
+            sx={{ 
+              bgcolor: color, 
+              width: 48, 
+              height: 48, 
+              mr: 2,
+              transition: 'transform 0.3s ease'
+            }}
+            className="feature-icon"
+          >
+            {icon}
+          </Avatar>
+          <Box>
+            <Typography variant="h6" component="h2" gutterBottom>
+              {title}
+            </Typography>
+            <Typography variant="body2" color="text.secondary">
+              {stats}
+            </Typography>
+          </Box>
+        </Box>
+        <Typography variant="body2" color="text.secondary">
+          {description}
+        </Typography>
+      </CardContent>
+      <CardActions>
+        <Button size="small" color="primary" fullWidth>
+          Access {title}
+        </Button>
+      </CardActions>
+    </Card>
+  );
+
   return (
     <Container maxWidth="xl" sx={{ mt: 4, mb: 4 }}>
       {/* Header */}
@@ -82,7 +208,7 @@ const TeacherDashboard = () => {
           Welcome back, {user?.firstName}!
         </Typography>
         <Typography variant="body1" color="textSecondary">
-          Here's your teaching overview for today.
+          Here's your teaching overview and quick access to all features.
         </Typography>
       </Box>
 
@@ -112,6 +238,7 @@ const TeacherDashboard = () => {
             value={`${stats.averageGrade}%`}
             icon={<Grade />}
             color="#FF9800"
+            subtitle="Class performance"
           />
         </Grid>
         <Grid item xs={12} sm={6} md={3}>
@@ -120,45 +247,65 @@ const TeacherDashboard = () => {
             value={`${stats.attendanceRate}%`}
             icon={<Schedule />}
             color="#9C27B0"
+            subtitle="Overall attendance"
           />
         </Grid>
       </Grid>
 
+      {/* Feature Navigation Grid */}
+      <Box sx={{ mb: 4 }}>
+        <Typography variant="h5" gutterBottom sx={{ fontWeight: 'bold', mb: 3 }}>
+          Quick Access to Features
+        </Typography>
+        <Grid container spacing={3}>
+          {featureCards.map((feature, index) => (
+            <Grid item xs={12} sm={6} md={4} lg={3} key={index}>
+              <FeatureCard {...feature} />
+            </Grid>
+          ))}
+        </Grid>
+      </Box>
+
+      {/* Current Classes */}
       <Grid container spacing={3}>
-        {/* Today's Classes */}
         <Grid item xs={12} md={8}>
           <Paper sx={{ p: 3 }}>
-            <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 3 }}>
-              <Typography variant="h6" sx={{ fontWeight: 'bold' }}>
-                Today's Classes
-              </Typography>
-              <Button variant="contained" startIcon={<Add />}>
-                Create Class
-              </Button>
-            </Box>
-
-            {classes.map((classItem) => (
-              <Card key={classItem.id} sx={{ mb: 2 }}>
-                <CardContent>
-                  <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
-                    <Box>
-                      <Typography variant="h6" gutterBottom>
-                        {classItem.name}
+            <Typography variant="h6" gutterBottom sx={{ fontWeight: 'bold' }}>
+              Current Classes
+            </Typography>
+            <Grid container spacing={2}>
+              {classes.map((cls) => (
+                <Grid item xs={12} sm={6} md={4} key={cls.id}>
+                  <Card sx={{ height: '100%' }}>
+                    <CardContent>
+                      <Typography variant="h6" component="h2" gutterBottom>
+                        {cls.name}
                       </Typography>
                       <Typography variant="body2" color="textSecondary" gutterBottom>
-                        {classItem.time} • {classItem.students} students
+                        Time: {cls.time}
                       </Typography>
-                    </Box>
-                    <Box sx={{ textAlign: 'right' }}>
-                      <Chip label={`Grade: ${classItem.grade}`} color="primary" size="small" sx={{ mb: 1 }} />
-                      <Typography variant="body2" color="textSecondary">
-                        {classItem.attendance}% attendance
-                      </Typography>
-                    </Box>
-                  </Box>
-                </CardContent>
-              </Card>
-            ))}
+                      <Box sx={{ display: 'flex', justifyContent: 'space-between', mb: 1 }}>
+                        <Typography variant="body2">Students</Typography>
+                        <Typography variant="body2">{cls.students}</Typography>
+                      </Box>
+                      <Box sx={{ display: 'flex', justifyContent: 'space-between', mb: 1 }}>
+                        <Typography variant="body2">Grade</Typography>
+                        <Chip label={cls.grade} size="small" color="primary" />
+                      </Box>
+                      <Box sx={{ display: 'flex', justifyContent: 'space-between', mb: 1 }}>
+                        <Typography variant="body2">Attendance</Typography>
+                        <Typography variant="body2">{cls.attendance}%</Typography>
+                      </Box>
+                    </CardContent>
+                    <CardActions>
+                      <Button size="small" variant="outlined" fullWidth>
+                        View Details
+                      </Button>
+                    </CardActions>
+                  </Card>
+                </Grid>
+              ))}
+            </Grid>
           </Paper>
         </Grid>
 
@@ -168,32 +315,51 @@ const TeacherDashboard = () => {
             <Typography variant="h6" gutterBottom sx={{ fontWeight: 'bold' }}>
               Quick Actions
             </Typography>
-            <List sx={{ p: 0 }}>
-              <ListItem button>
-                <ListItemIcon>
-                  <Assignment />
-                </ListItemIcon>
-                <ListItemText primary="Create Assignment" />
-              </ListItem>
-              <ListItem button>
-                <ListItemIcon>
-                  <Schedule />
-                </ListItemIcon>
-                <ListItemText primary="Schedule Class" />
-              </ListItem>
-              <ListItem button>
-                <ListItemIcon>
-                  <Grade />
-                </ListItemIcon>
-                <ListItemText primary="Grade Assignments" />
-              </ListItem>
-              <ListItem button>
-                <ListItemIcon>
-                  <VideoCall />
-                </ListItemIcon>
-                <ListItemText primary="Start Video Call" />
-              </ListItem>
-            </List>
+            <Grid container spacing={2}>
+              <Grid item xs={12}>
+                <Button
+                  variant="contained"
+                  startIcon={<Add />}
+                  fullWidth
+                  sx={{ mb: 2 }}
+                  onClick={() => navigate('/assignments')}
+                >
+                  Create Assignment
+                </Button>
+              </Grid>
+              <Grid item xs={12}>
+                <Button
+                  variant="outlined"
+                  startIcon={<Grade />}
+                  fullWidth
+                  sx={{ mb: 2 }}
+                  onClick={() => navigate('/grades')}
+                >
+                  Record Grades
+                </Button>
+              </Grid>
+              <Grid item xs={12}>
+                <Button
+                  variant="outlined"
+                  startIcon={<Schedule />}
+                  fullWidth
+                  sx={{ mb: 2 }}
+                  onClick={() => navigate('/attendance')}
+                >
+                  Mark Attendance
+                </Button>
+              </Grid>
+              <Grid item xs={12}>
+                <Button
+                  variant="outlined"
+                  startIcon={<Message />}
+                  fullWidth
+                  onClick={() => navigate('/messages')}
+                >
+                  Send Message
+                </Button>
+              </Grid>
+            </Grid>
           </Paper>
         </Grid>
       </Grid>
@@ -203,6 +369,7 @@ const TeacherDashboard = () => {
         color="primary"
         aria-label="add"
         sx={{ position: 'fixed', bottom: 16, right: 16 }}
+        onClick={() => navigate('/assignments')}
       >
         <Add />
       </Fab>

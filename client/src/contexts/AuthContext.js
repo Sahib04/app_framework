@@ -144,7 +144,10 @@ export const AuthProvider = ({ children }) => {
 
       dispatch({
         type: AUTH_ACTIONS.LOGIN_SUCCESS,
-        payload: response.data
+        payload: {
+          user: response.data.data.user,
+          token: response.data.data.token
+        }
       });
 
       return { success: true };

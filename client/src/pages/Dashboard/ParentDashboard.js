@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useState } from 'react';
 import {
   Box,
   Container,
@@ -14,58 +14,137 @@ import {
   ListItemIcon,
   Chip,
   Avatar,
-  Fab
+  IconButton,
+  Fab,
+  LinearProgress
 } from '@mui/material';
 import {
-  School,
-  Assignment,
+  People,
   Grade,
   Schedule,
-  Book,
-  Add,
-  Person,
-  Group,
-  Notifications,
+  Message,
+  Event,
   Payment,
-  Message
+  Assessment,
+  School,
+  TrendingUp,
+  Notifications,
+  Receipt,
+  Book,
+  Assignment
 } from '@mui/icons-material';
 import { useAuth } from '../../contexts/AuthContext';
+import { useNavigate } from 'react-router-dom';
 
 const ParentDashboard = () => {
   const { user } = useAuth();
+  const navigate = useNavigate();
 
   const stats = {
     totalChildren: 2,
+    totalCourses: 12,
     averageGrade: 88.5,
     attendanceRate: 94.8,
-    pendingPayments: 1
+    outstandingFees: 250.00
   };
 
   const children = [
     { 
       id: 1, 
-      name: 'Alice Johnson', 
+      name: 'Alex Johnson', 
       grade: '10th Grade', 
-      averageGrade: 92, 
-      attendance: 96,
-      courses: 6
+      courses: 6, 
+      averageGrade: 90.2, 
+      attendance: 96.5,
+      image: 'https://source.unsplash.com/100x100/?student'
     },
     { 
       id: 2, 
-      name: 'Bob Johnson', 
+      name: 'Sarah Johnson', 
       grade: '8th Grade', 
-      averageGrade: 85, 
-      attendance: 93,
-      courses: 5
+      courses: 6, 
+      averageGrade: 86.8, 
+      attendance: 93.1,
+      image: 'https://source.unsplash.com/100x100/?student-female'
     }
   ];
 
-  const payments = [
-    { id: 1, description: 'Tuition Fee - January', amount: 1200, status: 'paid', date: '2024-01-05' },
-    { id: 2, description: 'Lab Fee - Physics', amount: 150, status: 'pending', date: '2024-01-15' }
+  const recentActivities = [
+    { id: 1, type: 'grade', title: 'Math Test Grade Updated', child: 'Alex Johnson', time: '2 hours ago', value: 'A-' },
+    { id: 2, type: 'attendance', title: 'Attendance Marked', child: 'Sarah Johnson', time: '1 day ago', value: 'Present' },
+    { id: 3, type: 'assignment', title: 'Science Project Due', child: 'Alex Johnson', time: '2 days ago', value: 'Due Soon' },
+    { id: 4, type: 'payment', title: 'Fee Payment Received', child: 'Sarah Johnson', time: '1 week ago', value: '$150.00' }
   ];
 
-  const StatCard = ({ title, value, icon, color, subtitle }) => (
+  // Feature navigation cards for parents
+  const featureCards = [
+    {
+      title: 'Children',
+      description: 'View your children\'s profiles and academic information',
+      icon: <People />,
+      color: '#4CAF50',
+      path: '/children',
+      stats: `${stats.totalChildren} children`
+    },
+    {
+      title: 'Grades',
+      description: 'Monitor academic performance and progress reports',
+      icon: <Grade />,
+      color: '#9C27B0',
+      path: '/grades',
+      stats: `${stats.averageGrade}% average`
+    },
+    {
+      title: 'Attendance',
+      description: 'Track attendance records and patterns',
+      icon: <Schedule />,
+      color: '#2196F3',
+      path: '/attendance',
+      stats: `${stats.attendanceRate}% attendance`
+    },
+    {
+      title: 'Communication',
+      description: 'Send messages to teachers and administrators',
+      icon: <Message />,
+      color: '#00BCD4',
+      path: '/messages',
+      stats: 'Active conversations'
+    },
+    {
+      title: 'Payments',
+      description: 'Manage fees, payments, and financial records',
+      icon: <Payment />,
+      color: '#FF9800',
+      path: '/payments',
+      stats: `$${stats.outstandingFees} outstanding`
+    },
+    {
+      title: 'Events',
+      description: 'View school events and activities',
+      icon: <Event />,
+      color: '#8BC34A',
+      path: '/events',
+      stats: 'Upcoming events'
+    },
+    {
+      title: 'Reports',
+      description: 'Access academic and financial reports',
+      icon: <Assessment />,
+      color: '#607D8B',
+      path: '/reports',
+      stats: 'Analytics & insights'
+    },
+    {
+      title: 'Receipts',
+      description: 'View payment receipts and transaction history',
+      icon: <Receipt />,
+      color: '#E91E63',
+      path: '/receipts',
+      stats: 'Payment history'
+    }
+  ];
+
+  const StatCard = ({ title, value, icon, color, subtitle, progress }) => (
     <Card sx={{ height: '100%' }}>
       <CardContent>
         <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
@@ -81,6 +160,23 @@ const ParentDashboard = () => {
                 {subtitle}
               </Typography>
             )}
+            {progress && (
+              <Box sx={{ mt: 2 }}>
+                <Box sx={{ display: 'flex', justifyContent: 'space-between', mb: 1 }}>
+                  <Typography variant="body2" color="textSecondary">
+                    Progress
+                  </Typography>
+                  <Typography variant="body2" color="textSecondary">
+                    {progress}%
+                  </Typography>
+                </Box>
+                <LinearProgress
+                  variant="determinate"
+                  value={progress}
+                  sx={{ height: 8, borderRadius: 4 }}
+                />
+              </Box>
+            )}
           </Box>
           <Avatar sx={{ bgcolor: color, width: 56, height: 56 }}>
             {icon}
@@ -90,27 +186,83 @@ const ParentDashboard = () => {
     </Card>
   );
 
-  const ChildCard = ({ child }) => (
-    <Card sx={{ mb: 2, cursor: 'pointer', transition: 'all 0.3s ease', '&:hover': { transform: 'translateY(-2px)', boxShadow: 3 } }}>
+  const FeatureCard = ({ title, description, icon, color, path, stats }) => (
+    <Card 
+      sx={{ 
+        height: '100%',
+        cursor: 'pointer',
+        transition: 'all 0.3s ease',
+        '&:hover': {
+          transform: 'translateY(-4px)',
+          boxShadow: 6,
+          '& .feature-icon': {
+            transform: 'scale(1.1)'
+          }
+        }
+      }}
+      onClick={() => navigate(path)}
+    >
       <CardContent>
-        <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
+        <Box sx={{ display: 'flex', alignItems: 'center', mb: 2 }}>
+          <Avatar 
+            sx={{ 
+              bgcolor: color, 
+              width: 48, 
+              height: 48, 
+              mr: 2,
+              transition: 'transform 0.3s ease'
+            }}
+            className="feature-icon"
+          >
+            {icon}
+          </Avatar>
           <Box>
-            <Typography variant="h6" gutterBottom>
-              {child.name}
+            <Typography variant="h6" component="h2" gutterBottom>
+              {title}
             </Typography>
-            <Typography variant="body2" color="textSecondary" gutterBottom>
-              {child.grade} • {child.courses} courses
-            </Typography>
-          </Box>
-          <Box sx={{ textAlign: 'right' }}>
-            <Chip label={`Grade: ${child.averageGrade}%`} color="primary" size="small" sx={{ mb: 1 }} />
-            <Typography variant="body2" color="textSecondary">
-              {child.attendance}% attendance
+            <Typography variant="body2" color="text.secondary">
+              {stats}
             </Typography>
           </Box>
         </Box>
+        <Typography variant="body2" color="text.secondary">
+          {description}
+        </Typography>
       </CardContent>
+      <Box sx={{ display: 'flex', justifyContent: 'flex-end' }}>
+        <Button size="small" color="primary">
+          Access {title}
+        </Button>
+      </Box>
     </Card>
+  );
+
+  const ActivityItem = ({ activity }) => (
+    <ListItem sx={{ px: 0, mb: 2 }}>
+      <Card sx={{ width: '100%' }}>
+        <CardContent>
+          <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', mb: 1 }}>
+            <Box>
+              <Typography variant="subtitle1" gutterBottom>
+                {activity.title}
+              </Typography>
+              <Typography variant="body2" color="textSecondary">
+                {activity.child} • {activity.time}
+              </Typography>
+            </Box>
+            <Chip 
+              label={activity.value} 
+              color={
+                activity.type === 'grade' ? 'primary' : 
+                activity.type === 'attendance' ? 'success' : 
+                activity.type === 'assignment' ? 'warning' : 'info'
+              } 
+              size="small"
+            />
+          </Box>
+        </CardContent>
+      </Card>
+    </ListItem>
   );
 
   return (
@@ -121,7 +273,7 @@ const ParentDashboard = () => {
           Welcome back, {user?.firstName}!
         </Typography>
         <Typography variant="body1" color="textSecondary">
-          Here's an overview of your children's academic progress.
+          Here's your overview of your children's academic progress and quick access to all features.
         </Typography>
       </Box>
 
@@ -129,11 +281,20 @@ const ParentDashboard = () => {
       <Grid container spacing={3} sx={{ mb: 4 }}>
         <Grid item xs={12} sm={6} md={3}>
           <StatCard
-            title="Children"
+            title="Total Children"
             value={stats.totalChildren}
-            icon={<Person />}
+            icon={<People />}
             color="#4CAF50"
             subtitle="Enrolled students"
+          />
+        </Grid>
+        <Grid item xs={12} sm={6} md={3}>
+          <StatCard
+            title="Total Courses"
+            value={stats.totalCourses}
+            icon={<Book />}
+            color="#2196F3"
+            subtitle="Combined courses"
           />
         </Grid>
         <Grid item xs={12} sm={6} md={3}>
@@ -141,171 +302,169 @@ const ParentDashboard = () => {
             title="Average Grade"
             value={`${stats.averageGrade}%`}
             icon={<Grade />}
-            color="#2196F3"
-          />
-        </Grid>
-        <Grid item xs={12} sm={6} md={3}>
-          <StatCard
-            title="Attendance Rate"
-            value={`${stats.attendanceRate}%`}
-            icon={<Schedule />}
-            color="#FF9800"
-          />
-        </Grid>
-        <Grid item xs={12} sm={6} md={3}>
-          <StatCard
-            title="Pending Payments"
-            value={stats.pendingPayments}
-            icon={<Payment />}
             color="#9C27B0"
-            subtitle="Requires attention"
+            subtitle="Combined performance"
+          />
+        </Grid>
+        <Grid item xs={12} sm={6} md={3}>
+          <StatCard
+            title="Outstanding Fees"
+            value={`$${stats.outstandingFees}`}
+            icon={<Payment />}
+            color="#FF9800"
+            subtitle="Payment due"
           />
         </Grid>
       </Grid>
+
+      {/* Feature Navigation Grid */}
+      <Box sx={{ mb: 4 }}>
+        <Typography variant="h5" gutterBottom sx={{ fontWeight: 'bold', mb: 3 }}>
+          Quick Access to Features
+        </Typography>
+        <Grid container spacing={3}>
+          {featureCards.map((feature, index) => (
+            <Grid item xs={12} sm={6} md={4} lg={3} key={index}>
+              <FeatureCard {...feature} />
+            </Grid>
+          ))}
+        </Grid>
+      </Box>
 
       <Grid container spacing={3}>
-        {/* Children's Progress */}
+        {/* Children Overview */}
         <Grid item xs={12} md={6}>
           <Paper sx={{ p: 3 }}>
-            <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 3 }}>
-              <Typography variant="h6" sx={{ fontWeight: 'bold' }}>
-                Children's Progress
-              </Typography>
-              <Button variant="outlined" size="small">
-                View Details
-              </Button>
-            </Box>
-
-            {children.map((child) => (
-              <ChildCard key={child.id} child={child} />
-            ))}
+            <Typography variant="h6" gutterBottom sx={{ fontWeight: 'bold' }}>
+              Children Overview
+            </Typography>
+            <Grid container spacing={2}>
+              {children.map((child) => (
+                <Grid item xs={12} key={child.id}>
+                  <Card>
+                    <CardContent>
+                      <Box sx={{ display: 'flex', alignItems: 'center', mb: 2 }}>
+                        <Avatar src={child.image} sx={{ mr: 2 }}>
+                          {child.name.split(' ').map(n => n[0]).join('')}
+                        </Avatar>
+                        <Box sx={{ flexGrow: 1 }}>
+                          <Typography variant="h6" component="h2" gutterBottom>
+                            {child.name}
+                          </Typography>
+                          <Typography variant="body2" color="textSecondary">
+                            {child.grade} • {child.courses} courses
+                          </Typography>
+                        </Box>
+                      </Box>
+                      <Grid container spacing={2}>
+                        <Grid item xs={6}>
+                          <Box sx={{ textAlign: 'center' }}>
+                            <Typography variant="h6" color="primary">
+                              {child.averageGrade}%
+                            </Typography>
+                            <Typography variant="caption" color="textSecondary">
+                              Average Grade
+                            </Typography>
+                          </Box>
+                        </Grid>
+                        <Grid item xs={6}>
+                          <Box sx={{ textAlign: 'center' }}>
+                            <Typography variant="h6" color="success.main">
+                              {child.attendance}%
+                            </Typography>
+                            <Typography variant="caption" color="textSecondary">
+                              Attendance
+                            </Typography>
+                          </Box>
+                        </Grid>
+                      </Grid>
+                    </CardContent>
+                    <Box sx={{ display: 'flex', justifyContent: 'flex-end' }}>
+                      <Button size="small" variant="outlined">
+                        View Details
+                      </Button>
+                    </Box>
+                  </Card>
+                </Grid>
+              ))}
+            </Grid>
           </Paper>
         </Grid>
 
-        {/* Payments */}
+        {/* Recent Activities */}
         <Grid item xs={12} md={6}>
           <Paper sx={{ p: 3 }}>
-            <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 3 }}>
-              <Typography variant="h6" sx={{ fontWeight: 'bold' }}>
-                Recent Payments
-              </Typography>
-              <Button variant="contained" size="small">
-                Make Payment
-              </Button>
-            </Box>
-
-            {payments.map((payment) => (
-              <Card key={payment.id} sx={{ mb: 2 }}>
-                <CardContent>
-                  <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                    <Box>
-                      <Typography variant="h6" gutterBottom>
-                        {payment.description}
-                      </Typography>
-                      <Typography variant="body2" color="textSecondary">
-                        Due: {payment.date}
-                      </Typography>
-                      <Chip 
-                        label={payment.status} 
-                        color={payment.status === 'paid' ? 'success' : 'warning'}
-                        size="small"
-                      />
-                    </Box>
-                    <Box sx={{ textAlign: 'right' }}>
-                      <Typography variant="h6" color="primary">
-                        ${payment.amount}
-                      </Typography>
-                      {payment.status === 'pending' && (
-                        <Button variant="contained" size="small" sx={{ mt: 1 }}>
-                          Pay Now
-                        </Button>
-                      )}
-                    </Box>
-                  </Box>
-                </CardContent>
-              </Card>
-            ))}
-          </Paper>
-        </Grid>
-
-        {/* Quick Actions */}
-        <Grid item xs={12} md={4}>
-          <Paper sx={{ p: 3, height: 'fit-content' }}>
             <Typography variant="h6" gutterBottom sx={{ fontWeight: 'bold' }}>
-              Quick Actions
+              Recent Activities
             </Typography>
             <List sx={{ p: 0 }}>
-              <ListItem button>
-                <ListItemIcon>
-                  <Message />
-                </ListItemIcon>
-                <ListItemText primary="Message Teacher" />
-              </ListItem>
-              <ListItem button>
-                <ListItemIcon>
-                  <Grade />
-                </ListItemIcon>
-                <ListItemText primary="Check Grades" />
-              </ListItem>
-              <ListItem button>
-                <ListItemIcon>
-                  <Payment />
-                </ListItemIcon>
-                <ListItemText primary="Make Payment" />
-              </ListItem>
-              <ListItem button>
-                <ListItemIcon>
-                  <Schedule />
-                </ListItemIcon>
-                <ListItemText primary="View Schedule" />
-              </ListItem>
-            </List>
-          </Paper>
-        </Grid>
-
-        {/* Notifications */}
-        <Grid item xs={12} md={8}>
-          <Paper sx={{ p: 3 }}>
-            <Typography variant="h6" gutterBottom sx={{ fontWeight: 'bold' }}>
-              Recent Notifications
-            </Typography>
-            <List sx={{ p: 0 }}>
-              <ListItem>
-                <ListItemText 
-                  primary="Parent-Teacher Conference" 
-                  secondary="Scheduled for next week - 3:00 PM"
-                />
-              </ListItem>
-              <ListItem>
-                <ListItemText 
-                  primary="Payment Reminder" 
-                  secondary="Lab fee due in 3 days - $150"
-                />
-              </ListItem>
-              <ListItem>
-                <ListItemText 
-                  primary="Grade Update" 
-                  secondary="Alice's math grade updated to A"
-                />
-              </ListItem>
-              <ListItem>
-                <ListItemText 
-                  primary="Attendance Alert" 
-                  secondary="Bob missed Physics class yesterday"
-                />
-              </ListItem>
+              {recentActivities.map((activity) => (
+                <ActivityItem key={activity.id} activity={activity} />
+              ))}
             </List>
           </Paper>
         </Grid>
       </Grid>
+
+      {/* Quick Actions */}
+      <Box sx={{ mt: 4 }}>
+        <Paper sx={{ p: 3 }}>
+          <Typography variant="h6" gutterBottom sx={{ fontWeight: 'bold', mb: 3 }}>
+            Quick Actions
+          </Typography>
+          <Grid container spacing={2}>
+            <Grid item xs={12} sm={6} md={3}>
+              <Button
+                variant="contained"
+                startIcon={<Grade />}
+                fullWidth
+                onClick={() => navigate('/grades')}
+              >
+                View Grades
+              </Button>
+            </Grid>
+            <Grid item xs={12} sm={6} md={3}>
+              <Button
+                variant="outlined"
+                startIcon={<Schedule />}
+                fullWidth
+                onClick={() => navigate('/attendance')}
+              >
+                Check Attendance
+              </Button>
+            </Grid>
+            <Grid item xs={12} sm={6} md={3}>
+              <Button
+                variant="outlined"
+                startIcon={<Payment />}
+                fullWidth
+                onClick={() => navigate('/payments')}
+              >
+                Make Payment
+              </Button>
+            </Grid>
+            <Grid item xs={12} sm={6} md={3}>
+              <Button
+                variant="outlined"
+                startIcon={<Message />}
+                fullWidth
+                onClick={() => navigate('/messages')}
+              >
+                Contact Teacher
+              </Button>
+            </Grid>
+          </Grid>
+        </Paper>
+      </Box>
 
       {/* Floating Action Button */}
       <Fab
         color="primary"
         aria-label="add"
         sx={{ position: 'fixed', bottom: 16, right: 16 }}
+        onClick={() => navigate('/messages')}
       >
-        <Add />
+        <Message />
       </Fab>
     </Container>
   );
