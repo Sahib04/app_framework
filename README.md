@@ -140,14 +140,19 @@ school-management-system/
 
 Create a `.env` file in the root directory:
 
-```env
 # Server Configuration
 PORT=5000
 NODE_ENV=development
 
-# Database
-MONGODB_URI=mongodb://localhost:27017/school_management
+# Database Configuration - PostgreSQL
+DATABASE_URL=postgres://app_db_321n_user:CRjBloZDcIp0ohrQVxNjE0h1s0vEK9L2@dpg-d2feoiruibrs739se2lg-a.oregon-postgres.render.com:5432/app_db_321n
 
+# JWT Configuration
+JWT_SECRET=your_super_secret_jwt_key_here_make_it_long_and_random
+JWT_EXPIRE=24h
+
+# Frontend URL
+FRONTEND_URL=http://localhost:3000
 # JWT
 JWT_SECRET=your_jwt_secret_key
 JWT_EXPIRE=24h
