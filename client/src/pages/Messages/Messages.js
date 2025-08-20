@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef, useCallback } from 'react';
 import {
   Box,
   Grid,
@@ -95,17 +95,55 @@ const Messages = () => {
     if (token) loadPeers();
   }, [token]);
 
+  // Reusable: load conversations
+  const loadConversations = useCallback(async () => {
+    if (!token) return;
+    try {
+      const res = await fetch(`${API_BASE}/messages/conversations`, {
+        headers: { Authorization: `Bearer ${token}` }
+      });
+      const data = await res.json();
+      setConversations(Array.isArray(data) ? data : []);
+    } catch (e) {
+      // eslint-disable-next-line no-console
+      console.error('Failed to load conversations', e);
+    }
+  }, [token]);
+
   // Socket connect
   useEffect(() => {
     if (!token) return;
     const socket = io(WS_BASE, { auth: { token } });
     socketRef.current = socket;
-    socket.on('message', ({ message }) => {
+    socket.on('message', async ({ message }) => {
+      // Always refresh conversations so new threads appear/move to top
+      await loadConversations();
+
+      // If the incoming message belongs to current chat, append and mark seen
       if (selectedChat && message.conversationId === selectedChat.id) {
         setMessages(prev => [...prev, message]);
+        // auto mark seen if I am receiver
+        if (message.receiverId === user?.id) {
+          fetch(`${API_BASE}/messages/${message.id}/seen`, {
+            method: 'POST',
+            headers: { Authorization: `Bearer ${token}` },
+          }).catch(() => {});
+        }
         setTimeout(() => {
           listRef.current?.scrollTo({ top: listRef.current.scrollHeight, behavior: 'smooth' });
         }, 0);
+        return;
+      }
+
+      // If we don't have a conversation selected or it's a placeholder, and message involves me, try to auto-enter that convo
+      const involvesMe = message.senderId === user?.id || message.receiverId === user?.id;
+      if (involvesMe && (!selectedChat || !selectedChat.id)) {
+        // Find conversation in refreshed list
+        setConversations(prev => {
+          const found = (prev || []).find(c => c.id === message.conversationId);
+          if (found) setSelectedChat(found);
+          return prev;
+        });
       }
     });
     socket.on('typing', ({ from }) => {
@@ -121,28 +159,17 @@ const Messages = () => {
     });
     return () => { socket.disconnect(); };
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [token, selectedChat?.id]);
+  }, [token, selectedChat?.id, loadConversations]);
 
-  // Load conversations
+  // Initial load conversations
   useEffect(() => {
-    const loadConversations = async () => {
-      try {
-        const res = await fetch(`${API_BASE}/messages/conversations`, {
-          headers: { Authorization: `Bearer ${token}` }
-        });
-        const data = await res.json();
-        setConversations(Array.isArray(data) ? data : []);
-      } catch (e) {
-        console.error('Failed to load conversations', e);
-      }
-    };
-    if (token) loadConversations();
-  }, [token]);
+    loadConversations();
+  }, [loadConversations]);
 
   // Load messages for selected chat
   useEffect(() => {
     const loadMessages = async () => {
-      if (!selectedChat) return;
+      if (!selectedChat?.id) return setMessages([]);
       try {
         const res = await fetch(`${API_BASE}/messages/${selectedChat.id}?limit=50`, {
           headers: { Authorization: `Bearer ${token}` }
@@ -153,10 +180,11 @@ const Messages = () => {
           listRef.current?.scrollTo({ top: listRef.current.scrollHeight });
         }, 0);
       } catch (e) {
+        // eslint-disable-next-line no-console
         console.error('Failed to load messages', e);
       }
     };
-    if (token && selectedChat) loadMessages();
+    if (token) loadMessages();
   }, [token, selectedChat]);
 
   const conversationTypes = ['all', 'individual'];
@@ -168,10 +196,9 @@ const Messages = () => {
   });
 
   const handlePeerClick = async (peer) => {
-    // Start chat by sending an empty fetch to get/create conversation when needed
-    // Quick trick: send a lightweight hello message? Better: send first message from input
-    // Here we just prepare a pseudo conversation object to fetch messages after first send
+    // prepare placeholder conversation for first message
     setSelectedChat({ id: null, teacherId: user.role === 'teacher' ? user.id : peer.id, studentId: user.role === 'student' ? user.id : peer.id });
+    setMessages([]);
     setViewMode(1);
   };
 
@@ -204,13 +231,14 @@ const Messages = () => {
       });
       const sent = await res.json();
       if (res.ok) {
-        // If we didn't have a conversation id yet, derive it now by reloading conversations
+        // Ensure conversations list updates and selected chat gets real id
+        await loadConversations();
         if (!selectedChat.id) {
-          const reload = await fetch(`${API_BASE}/messages/conversations`, { headers: { Authorization: `Bearer ${token}` } });
-          const convs = await reload.json();
-          const peerId = receiverId;
-          const found = (convs || []).find(c => (c.teacherId === (user.role==='teacher'?user.id:peerId) && c.studentId === (user.role==='student'?user.id:peerId)));
-          if (found) setSelectedChat(found);
+          setConversations(prev => {
+            const found = (prev || []).find(c => c.teacherId === (user.role==='teacher'?user.id:receiverId) && c.studentId === (user.role==='student'?user.id:receiverId));
+            if (found) setSelectedChat(found);
+            return prev;
+          });
         }
         setMessages(prev => [...prev, sent]);
         setNewMessage('');
@@ -219,6 +247,7 @@ const Messages = () => {
         }, 0);
       }
     } catch (e) {
+      // eslint-disable-next-line no-console
       console.error('Failed to send', e);
     }
   };
@@ -247,12 +276,13 @@ const Messages = () => {
       });
       const sent = await res.json();
       if (res.ok) {
+        await loadConversations();
         if (!selectedChat.id) {
-          const reload = await fetch(`${API_BASE}/messages/conversations`, { headers: { Authorization: `Bearer ${token}` } });
-          const convs = await reload.json();
-          const peerId = receiverId;
-          const found = (convs || []).find(c => (c.teacherId === (user.role==='teacher'?user.id:peerId) && c.studentId === (user.role==='student'?user.id:peerId)));
-          if (found) setSelectedChat(found);
+          setConversations(prev => {
+            const found = (prev || []).find(c => c.teacherId === (user.role==='teacher'?user.id:receiverId) && c.studentId === (user.role==='student'?user.id:receiverId));
+            if (found) setSelectedChat(found);
+            return prev;
+          });
         }
         setMessages(prev => [...prev, sent]);
         setTimeout(() => {

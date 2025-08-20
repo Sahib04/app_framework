@@ -39,6 +39,130 @@ router.get('/peers', authenticateToken, async (req, res) => {
   }
 });
 
+// Create user (admin)
+router.post('/', authenticateToken, authorizeRoles(['admin']), [
+  body('role').isIn(['admin','teacher','student','parent']).withMessage('Invalid role'),
+  body('firstName').trim().isLength({ min: 2, max: 50 }),
+  body('lastName').trim().isLength({ min: 2, max: 50 }),
+  body('email').isEmail(),
+  body('password').optional().isLength({ min: 6 }),
+], async (req, res) => {
+  try {
+    const errors = validationResult(req);
+    if (!errors.isEmpty()) return res.status(400).json({ errors: errors.array() });
+
+    const existing = await User.findOne({ where: { email: req.body.email } });
+    if (existing) return res.status(400).json({ message: 'Email already exists' });
+
+    const payload = {
+      firstName: req.body.firstName,
+      lastName: req.body.lastName,
+      email: req.body.email,
+      role: req.body.role,
+      phone: req.body.phone || null,
+      isActive: req.body.isActive !== undefined ? !!req.body.isActive : true,
+      isEmailVerified: req.body.isEmailVerified !== undefined ? !!req.body.isEmailVerified : true,
+      department: req.body.department,
+      specialization: req.body.specialization,
+      studentId: req.body.studentId,
+      grade: req.body.grade,
+      section: req.body.section,
+      enrollmentDate: req.body.enrollmentDate || null,
+    };
+
+    // Hash password if provided
+    if (req.body.password) {
+      const salt = await bcrypt.genSalt(10);
+      payload.password = await bcrypt.hash(req.body.password, salt);
+    } else {
+      // default password for parent accounts, etc.
+      const salt = await bcrypt.genSalt(10);
+      payload.password = await bcrypt.hash('ChangeMe123!', salt);
+    }
+
+    const created = await User.create(payload);
+    const safe = await User.findByPk(created.id, { attributes: { exclude: ['password'] } });
+    res.status(201).json(safe);
+  } catch (error) {
+    console.error('Error creating user:', error);
+    res.status(500).json({ message: 'Internal server error' });
+  }
+});
+
+// Create student with guardian(s) (admin)
+router.post('/students', authenticateToken, authorizeRoles(['admin']), [
+  body('student.firstName').trim().isLength({ min: 2, max: 50 }),
+  body('student.lastName').trim().isLength({ min: 2, max: 50 }),
+  body('student.email').isEmail(),
+  body('student.grade').optional().isString(),
+  body('student.section').optional().isString(),
+  body('guardians').isArray().withMessage('guardians must be array'),
+], async (req, res) => {
+  const t = await User.sequelize.transaction();
+  try {
+    const errors = validationResult(req);
+    if (!errors.isEmpty()) return res.status(400).json({ errors: errors.array() });
+
+    const { student, guardians } = req.body;
+    const exists = await User.findOne({ where: { email: student.email } });
+    if (exists) return res.status(400).json({ message: 'Student email already exists' });
+
+    // Create student
+    const salt = await bcrypt.genSalt(10);
+    const studentPayload = {
+      firstName: student.firstName,
+      lastName: student.lastName,
+      email: student.email,
+      role: 'student',
+      phone: student.phone || null,
+      studentId: student.studentId || null,
+      grade: student.grade || null,
+      section: student.section || null,
+      enrollmentDate: student.enrollmentDate || null,
+      isActive: true,
+      isEmailVerified: true,
+      password: await bcrypt.hash(student.password || 'student123', salt),
+    };
+    const createdStudent = await User.create(studentPayload, { transaction: t });
+    const studentIdValue = createdStudent.studentId || createdStudent.id;
+
+    // Create guardians (parents). If parent email exists, attach child; else create.
+    for (const g of guardians) {
+      if (!g || !g.email) continue;
+      let parent = await User.findOne({ where: { email: g.email }, transaction: t });
+      if (!parent) {
+        const psalt = await bcrypt.genSalt(10);
+        parent = await User.create({
+          firstName: g.firstName || 'Guardian',
+          lastName: g.lastName || '',
+          email: g.email,
+          role: 'parent',
+          phone: g.phone || null,
+          isActive: true,
+          isEmailVerified: true,
+          password: await bcrypt.hash(g.password || 'parent123', psalt),
+          children: [{ studentId: String(studentIdValue), relation: g.relation || 'guardian' }],
+        }, { transaction: t });
+      } else {
+        const kids = Array.isArray(parent.children) ? parent.children : [];
+        if (!kids.some(k => (k?.studentId || k) === String(studentIdValue))) {
+          kids.push({ studentId: String(studentIdValue), relation: g.relation || 'guardian' });
+          parent.children = kids;
+          await parent.save({ transaction: t });
+        }
+      }
+    }
+
+    await t.commit();
+    const safe = await User.findByPk(createdStudent.id, { attributes: { exclude: ['password'] } });
+    res.status(201).json(safe);
+  } catch (error) {
+    await t.rollback();
+    console.error('Error creating student with guardians:', error);
+    res.status(500).json({ message: 'Internal server error' });
+  }
+});
+
 // Get all users (admin only)
 router.get('/', authenticateToken, authorizeRoles(['admin']), async (req, res) => {
   try {
@@ -109,7 +233,6 @@ router.get('/:id', authenticateToken, async (req, res) => {
       return res.status(404).json({ message: 'User not found' });
     }
 
-    // Check if user has permission to view this profile
     if (!authorizeResource(req.user, user)) {
       return res.status(403).json({ message: 'Access denied' });
     }
@@ -117,46 +240,6 @@ router.get('/:id', authenticateToken, async (req, res) => {
     res.json(user);
   } catch (error) {
     console.error('Error fetching user:', error);
-    res.status(500).json({ message: 'Internal server error' });
-  }
-});
-
-// Update user profile
-router.put('/profile', authenticateToken, [
-  body('firstName').optional().trim().isLength({ min: 2, max: 50 }),
-  body('lastName').optional().trim().isLength({ min: 2, max: 50 }),
-  body('phone').optional().isMobilePhone(),
-  body('dateOfBirth').optional().isISO8601(),
-  body('gender').optional().isIn(['male', 'female', 'other']),
-  body('address').optional().isObject(),
-], async (req, res) => {
-  try {
-    const errors = validationResult(req);
-    if (!errors.isEmpty()) {
-      return res.status(400).json({ errors: errors.array() });
-    }
-
-    const user = await User.findByPk(req.user.id);
-    if (!user) {
-      return res.status(404).json({ message: 'User not found' });
-    }
-
-    // Update allowed fields
-    const allowedFields = ['firstName', 'lastName', 'phone', 'dateOfBirth', 'gender', 'address'];
-    allowedFields.forEach(field => {
-      if (req.body[field] !== undefined) {
-        user[field] = req.body[field];
-      }
-    });
-
-    await user.save();
-    
-    const updatedUser = await User.findByPk(user.id, {
-      attributes: { exclude: ['password'] }
-    });
-    res.json(updatedUser);
-  } catch (error) {
-    console.error('Error updating profile:', error);
     res.status(500).json({ message: 'Internal server error' });
   }
 });
@@ -173,27 +256,24 @@ router.put('/:id', authenticateToken, authorizeRoles(['admin']), [
 ], async (req, res) => {
   try {
     const errors = validationResult(req);
-    if (!errors.isEmpty()) {
-      return res.status(400).json({ errors: errors.array() });
-    }
+    if (!errors.isEmpty()) return res.status(400).json({ errors: errors.array() });
 
-    const user = await User.findById(req.params.id);
-    if (!user) {
-      return res.status(404).json({ message: 'User not found' });
-    }
+    const user = await User.findByPk(req.params.id);
+    if (!user) return res.status(404).json({ message: 'User not found' });
 
-    // Update allowed fields
-    const allowedFields = ['firstName', 'lastName', 'email', 'phone', 'role', 'isActive', 'isEmailVerified'];
+    const allowedFields = ['firstName', 'lastName', 'email', 'phone', 'role', 'isActive', 'isEmailVerified', 'department', 'specialization', 'studentId', 'grade', 'section'];
     allowedFields.forEach(field => {
-      if (req.body[field] !== undefined) {
-        user[field] = req.body[field];
-      }
+      if (req.body[field] !== undefined) user[field] = req.body[field];
     });
 
+    if (req.body.password) {
+      const salt = await bcrypt.genSalt(10);
+      user.password = await bcrypt.hash(req.body.password, salt);
+    }
+
     await user.save();
-    
-    const updatedUser = await User.findById(user._id).select('-password');
-    res.json(updatedUser);
+    const safe = await User.findByPk(user.id, { attributes: { exclude: ['password'] } });
+    res.json(safe);
   } catch (error) {
     console.error('Error updating user:', error);
     res.status(500).json({ message: 'Internal server error' });
@@ -212,7 +292,7 @@ router.put('/change-password', authenticateToken, [
     }
 
     const { currentPassword, newPassword } = req.body;
-    const user = await User.findById(req.user.id);
+    const user = await User.findByPk(req.user.id);
     
     if (!user) {
       return res.status(404).json({ message: 'User not found' });
@@ -238,17 +318,17 @@ router.put('/change-password', authenticateToken, [
 // Delete user (admin only)
 router.delete('/:id', authenticateToken, authorizeRoles(['admin']), async (req, res) => {
   try {
-    const user = await User.findById(req.params.id);
+    const user = await User.findByPk(req.params.id);
     if (!user) {
       return res.status(404).json({ message: 'User not found' });
     }
 
     // Prevent admin from deleting themselves
-    if (user._id.toString() === req.user.id) {
+    if (user.id === req.user.id) {
       return res.status(400).json({ message: 'Cannot delete your own account' });
     }
 
-    await User.findByIdAndDelete(req.params.id);
+    await user.destroy();
     res.json({ message: 'User deleted successfully' });
   } catch (error) {
     console.error('Error deleting user:', error);
@@ -271,13 +351,15 @@ router.get('/students/list', authenticateToken, authorizeRoles(['admin', 'teache
     }
 
     const skip = (page - 1) * limit;
-    const students = await User.find(filter)
-      .select('-password')
-      .skip(skip)
-      .limit(parseInt(limit))
-      .sort({ firstName: 1, lastName: 1 });
+    const students = await User.findAll({
+      where: filter,
+      attributes: { exclude: ['password'] },
+      offset: skip,
+      limit: parseInt(limit),
+      order: [['firstName', 'ASC'], ['lastName', 'ASC']]
+    });
 
-    const total = await User.countDocuments(filter);
+    const total = await User.count({ where: filter });
 
     res.json({
       students,
@@ -309,13 +391,15 @@ router.get('/teachers/list', authenticateToken, authorizeRoles(['admin']), async
     }
 
     const skip = (page - 1) * limit;
-    const teachers = await User.find(filter)
-      .select('-password')
-      .skip(skip)
-      .limit(parseInt(limit))
-      .sort({ firstName: 1, lastName: 1 });
+    const teachers = await User.findAll({
+      where: filter,
+      attributes: { exclude: ['password'] },
+      offset: skip,
+      limit: parseInt(limit),
+      order: [['firstName', 'ASC'], ['lastName', 'ASC']]
+    });
 
-    const total = await User.countDocuments(filter);
+    const total = await User.count({ where: filter });
 
     res.json({
       teachers,
@@ -347,13 +431,15 @@ router.get('/parents/list', authenticateToken, authorizeRoles(['admin', 'teacher
     }
 
     const skip = (page - 1) * limit;
-    const parents = await User.find(filter)
-      .select('-password')
-      .skip(skip)
-      .limit(parseInt(limit))
-      .sort({ firstName: 1, lastName: 1 });
+    const parents = await User.findAll({
+      where: filter,
+      attributes: { exclude: ['password'] },
+      offset: skip,
+      limit: parseInt(limit),
+      order: [['firstName', 'ASC'], ['lastName', 'ASC']]
+    });
 
-    const total = await User.countDocuments(filter);
+    const total = await User.count({ where: filter });
 
     res.json({
       parents,
@@ -408,6 +494,32 @@ router.post('/bulk', authenticateToken, authorizeRoles(['admin']), [
     });
   } catch (error) {
     console.error('Error in bulk operation:', error);
+    res.status(500).json({ message: 'Internal server error' });
+  }
+});
+
+// Get guardians for a student (admin/teacher)
+router.get('/guardians-of/:student', authenticateToken, authorizeRoles(['admin','teacher']), async (req, res) => {
+  try {
+    const { Op } = require('sequelize');
+    const studentParam = req.params.student; // could be UUID or studentId string
+
+    let student = null;
+    if (/^[0-9a-fA-F-]{36}$/.test(studentParam)) {
+      student = await User.findByPk(studentParam);
+    }
+
+    const studentIdValue = student?.studentId || studentParam;
+
+    const parents = await User.findAll({ where: { role: 'parent', isActive: true }, attributes: ['id','firstName','lastName','email','phone','profilePicture','children'] });
+    const guardians = parents.filter(p => {
+      const kids = Array.isArray(p.children) ? p.children : [];
+      return kids.some(k => (k?.studentId || k) === studentIdValue);
+    }).map(p => ({ id: p.id, firstName: p.firstName, lastName: p.lastName, email: p.email, phone: p.phone, profilePicture: p.profilePicture }));
+
+    res.json({ guardians, by: studentIdValue });
+  } catch (error) {
+    console.error('Error fetching guardians:', error);
     res.status(500).json({ message: 'Internal server error' });
   }
 });
