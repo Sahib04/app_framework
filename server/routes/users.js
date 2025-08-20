@@ -6,6 +6,39 @@ const { authenticateToken, authorizeRoles, authorizeResource } = require('../mid
 
 const router = express.Router();
 
+// Get peers for messaging (teacher -> students, student -> teachers)
+router.get('/peers', authenticateToken, async (req, res) => {
+  try {
+    const { Op } = require('sequelize');
+    let targetRole = null;
+    if (req.user.role === 'teacher') targetRole = 'student';
+    else if (req.user.role === 'student') targetRole = 'teacher';
+    else if (req.user.role === 'admin') targetRole = req.query.role || 'student';
+    else targetRole = 'teacher';
+
+    const search = req.query.search || '';
+    const where = { role: targetRole, isActive: true };
+    if (search) {
+      where[Op.or] = [
+        { firstName: { [Op.iLike]: `%${search}%` } },
+        { lastName: { [Op.iLike]: `%${search}%` } },
+        { email: { [Op.iLike]: `%${search}%` } },
+      ];
+    }
+
+    const users = await User.findAll({
+      where,
+      attributes: ['id', 'firstName', 'lastName', 'email', 'role', 'profilePicture'],
+      order: [['firstName', 'ASC'], ['lastName', 'ASC']]
+    });
+
+    res.json(users);
+  } catch (error) {
+    console.error('Error fetching peers:', error);
+    res.status(500).json({ message: 'Internal server error' });
+  }
+});
+
 // Get all users (admin only)
 router.get('/', authenticateToken, authorizeRoles(['admin']), async (req, res) => {
   try {

@@ -73,10 +73,27 @@ const Messages = () => {
   const [drawerOpen, setDrawerOpen] = useState(false);
 
   const [conversations, setConversations] = useState([]);
+  const [peers, setPeers] = useState([]);
   const [messages, setMessages] = useState([]);
   const [peerTyping, setPeerTyping] = useState(false);
   const listRef = useRef(null);
   const socketRef = useRef(null);
+
+  // Load peers (teacher sees students, student sees teachers)
+  useEffect(() => {
+    const loadPeers = async () => {
+      try {
+        const res = await fetch(`${API_BASE}/users/peers`, {
+          headers: { Authorization: `Bearer ${token}` }
+        });
+        const data = await res.json();
+        setPeers(Array.isArray(data) ? data : []);
+      } catch (e) {
+        console.error('Failed to load peers', e);
+      }
+    };
+    if (token) loadPeers();
+  }, [token]);
 
   // Socket connect
   useEffect(() => {
@@ -84,12 +101,19 @@ const Messages = () => {
     const socket = io(WS_BASE, { auth: { token } });
     socketRef.current = socket;
     socket.on('message', ({ message }) => {
-      // If message belongs to selected chat, append
       if (selectedChat && message.conversationId === selectedChat.id) {
         setMessages(prev => [...prev, message]);
         setTimeout(() => {
           listRef.current?.scrollTo({ top: listRef.current.scrollHeight, behavior: 'smooth' });
         }, 0);
+      }
+    });
+    socket.on('typing', ({ from }) => {
+      // if typing from current peer, show typing
+      const peerId = resolvePeerId(selectedChat || {});
+      if (peerId && from === String(peerId)) {
+        setPeerTyping(true);
+        setTimeout(() => setPeerTyping(false), 1200);
       }
     });
     socket.on('seen', ({ messageId, seenAt }) => {
@@ -109,7 +133,6 @@ const Messages = () => {
         const data = await res.json();
         setConversations(Array.isArray(data) ? data : []);
       } catch (e) {
-        // eslint-disable-next-line no-console
         console.error('Failed to load conversations', e);
       }
     };
@@ -130,7 +153,6 @@ const Messages = () => {
           listRef.current?.scrollTo({ top: listRef.current.scrollHeight });
         }, 0);
       } catch (e) {
-        // eslint-disable-next-line no-console
         console.error('Failed to load messages', e);
       }
     };
@@ -145,6 +167,14 @@ const Messages = () => {
     return matchesType && matchesSearch;
   });
 
+  const handlePeerClick = async (peer) => {
+    // Start chat by sending an empty fetch to get/create conversation when needed
+    // Quick trick: send a lightweight hello message? Better: send first message from input
+    // Here we just prepare a pseudo conversation object to fetch messages after first send
+    setSelectedChat({ id: null, teacherId: user.role === 'teacher' ? user.id : peer.id, studentId: user.role === 'student' ? user.id : peer.id });
+    setViewMode(1);
+  };
+
   const handleNewMessage = () => {
     setOpenDialog(true);
   };
@@ -155,11 +185,13 @@ const Messages = () => {
 
   const resolvePeerId = (conv) => {
     if (!conv || !user) return null;
-    return user.id === conv.teacherId ? conv.studentId : conv.teacherId;
+    if (conv.id) return user.id === conv.teacherId ? conv.studentId : conv.teacherId;
+    // when conv is placeholder (before first message)
+    return user.role === 'teacher' ? conv.studentId : conv.teacherId;
   };
 
   const handleSendMessage = async () => {
-    if (!newMessage.trim() || !selectedChat) return;
+    if (!newMessage.trim()) return;
     try {
       const receiverId = resolvePeerId(selectedChat);
       const res = await fetch(`${API_BASE}/messages`, {
@@ -172,6 +204,14 @@ const Messages = () => {
       });
       const sent = await res.json();
       if (res.ok) {
+        // If we didn't have a conversation id yet, derive it now by reloading conversations
+        if (!selectedChat.id) {
+          const reload = await fetch(`${API_BASE}/messages/conversations`, { headers: { Authorization: `Bearer ${token}` } });
+          const convs = await reload.json();
+          const peerId = receiverId;
+          const found = (convs || []).find(c => (c.teacherId === (user.role==='teacher'?user.id:peerId) && c.studentId === (user.role==='student'?user.id:peerId)));
+          if (found) setSelectedChat(found);
+        }
         setMessages(prev => [...prev, sent]);
         setNewMessage('');
         setTimeout(() => {
@@ -189,9 +229,7 @@ const Messages = () => {
       const to = resolvePeerId(selectedChat);
       if (!to) return;
       socketRef.current.emit('typing', { to });
-    } catch (e) {
-      // ignore
-    }
+    } catch (e) {}
   };
 
   const onFilePick = async (e) => {
@@ -209,6 +247,13 @@ const Messages = () => {
       });
       const sent = await res.json();
       if (res.ok) {
+        if (!selectedChat.id) {
+          const reload = await fetch(`${API_BASE}/messages/conversations`, { headers: { Authorization: `Bearer ${token}` } });
+          const convs = await reload.json();
+          const peerId = receiverId;
+          const found = (convs || []).find(c => (c.teacherId === (user.role==='teacher'?user.id:peerId) && c.studentId === (user.role==='student'?user.id:peerId)));
+          if (found) setSelectedChat(found);
+        }
         setMessages(prev => [...prev, sent]);
         setTimeout(() => {
           listRef.current?.scrollTo({ top: listRef.current.scrollHeight, behavior: 'smooth' });
@@ -255,230 +300,180 @@ const Messages = () => {
         </Fab>
       </Box>
 
-      {/* Search and Filters */}
-      <Box sx={{ mb: 4 }}>
-        <Grid container spacing={2} alignItems="center">
-          <Grid item xs={12} md={6}>
-            <TextField
-              fullWidth
-              placeholder="Search conversations..."
-              value={searchTerm}
-              onChange={(e) => setSearchTerm(e.target.value)}
-              InputProps={{
-                startAdornment: <SearchIcon sx={{ mr: 1, color: 'text.secondary' }} />
-              }}
-            />
-          </Grid>
-          <Grid item xs={12} md={3}>
-            <FormControl fullWidth>
-              <InputLabel>Type</InputLabel>
-              <Select
-                value={filterType}
-                label="Type"
-                onChange={(e) => setFilterType(e.target.value)}
-              >
-                {conversationTypes.map((type) => (
-                  <MenuItem key={type} value={type}>
-                    {type === 'all' ? 'All Types' : 'Individual'}
-                  </MenuItem>
+      <Grid container spacing={2}>
+        {/* Peers list */}
+        <Grid item xs={12} md={4} lg={3}>
+          <Card sx={{ boxShadow: 3 }}>
+            <CardContent>
+              <Typography variant="h6" gutterBottom>
+                {user?.role === 'teacher' ? 'Students' : 'Teachers'}
+              </Typography>
+              <TextField
+                size="small"
+                placeholder={`Search ${user?.role === 'teacher' ? 'students' : 'teachers'}...`}
+                fullWidth
+                value={searchTerm}
+                onChange={(e) => setSearchTerm(e.target.value)}
+                InputProps={{ startAdornment: <SearchIcon sx={{ mr: 1, color: 'text.secondary' }} /> }}
+                sx={{ mb: 2 }}
+              />
+              <List dense>
+                {peers
+                  .filter(p => `${p.firstName} ${p.lastName}`.toLowerCase().includes(searchTerm.toLowerCase()) || p.email.toLowerCase().includes(searchTerm.toLowerCase()))
+                  .map(p => (
+                  <ListItem key={p.id} button onClick={() => handlePeerClick(p)}>
+                    <ListItemAvatar>
+                      <Avatar src={p.profilePicture}>
+                        {p.firstName?.[0]}{p.lastName?.[0]}
+                      </Avatar>
+                    </ListItemAvatar>
+                    <ListItemText primary={`${p.firstName} ${p.lastName}`} secondary={p.email} />
+                  </ListItem>
                 ))}
-              </Select>
-            </FormControl>
-          </Grid>
-          <Grid item xs={12} md={3}>
-            <Button
-              variant="outlined"
-              startIcon={<FilterIcon />}
-              fullWidth
-              onClick={() => {
-                setSearchTerm('');
-                setFilterType('all');
-              }}
-            >
-              Clear
-            </Button>
-          </Grid>
+              </List>
+            </CardContent>
+          </Card>
         </Grid>
-      </Box>
 
-      {/* View Mode Tabs */}
-      <Box sx={{ mb: 3 }}>
-        <Tabs value={viewMode} onChange={(e, newValue) => setViewMode(newValue)}>
-          <Tab label="Conversations" />
-          <Tab label="Chat View" />
-        </Tabs>
-      </Box>
+        {/* Main area */}
+        <Grid item xs={12} md={8} lg={9}>
+          {/* View Mode Tabs */}
+          <Box sx={{ mb: 2 }}>
+            <Tabs value={viewMode} onChange={(e, newValue) => setViewMode(newValue)}>
+              <Tab label="Conversations" />
+              <Tab label="Chat View" />
+            </Tabs>
+          </Box>
 
-      {/* Conversations View */}
-      {viewMode === 0 && (
-        <Grid container spacing={3}>
-          {filteredConversations.map((conversation) => (
-            <Grid item xs={12} md={6} lg={4} key={conversation.id}>
-              <Card 
-                sx={{ 
-                  height: '100%', 
-                  display: 'flex', 
-                  flexDirection: 'column', 
-                  boxShadow: 3,
-                  cursor: 'pointer',
-                  '&:hover': { boxShadow: 6 }
-                }}
-                onClick={() => {
-                  setSelectedChat(conversation);
-                  setViewMode(1);
-                }}
-              >
-                <CardContent sx={{ flexGrow: 1 }}>
-                  {/* Header */}
-                  <Box sx={{ display: 'flex', alignItems: 'flex-start', mb: 2 }}>
-                    <Avatar sx={{ width: 50, height: 50, mr: 2, bgcolor: 'primary.main' }}>
-                      <PeopleIcon />
-                    </Avatar>
-                    <Box sx={{ flexGrow: 1 }}>
-                      <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-                        <Typography variant="h6" component="h2" noWrap>
-                          {getConversationTitle(conversation)}
+          {/* Conversations View */}
+          {viewMode === 0 && (
+            <Grid container spacing={2}>
+              {filteredConversations.map((conversation) => (
+                <Grid item xs={12} md={6} lg={4} key={conversation.id}>
+                  <Card 
+                    sx={{ 
+                      height: '100%', 
+                      display: 'flex', 
+                      flexDirection: 'column', 
+                      boxShadow: 3,
+                      cursor: 'pointer',
+                      '&:hover': { boxShadow: 6 }
+                    }}
+                    onClick={() => {
+                      setSelectedChat(conversation);
+                      setViewMode(1);
+                    }}
+                  >
+                    <CardContent sx={{ flexGrow: 1 }}>
+                      <Box sx={{ display: 'flex', alignItems: 'flex-start', mb: 2 }}>
+                        <Avatar sx={{ width: 50, height: 50, mr: 2, bgcolor: 'primary.main' }}>
+                          <PeopleIcon />
+                        </Avatar>
+                        <Box sx={{ flexGrow: 1 }}>
+                          <Typography variant="h6" noWrap>
+                            {getConversationTitle(conversation)}
+                          </Typography>
+                          <Typography variant="body2" color="text.secondary" noWrap>
+                            Conversation ID: {conversation.id}
+                          </Typography>
+                          <Chip label={formatTime(conversation.lastMessageAt)} size="small" variant="outlined" sx={{ mt: 0.5 }} />
+                        </Box>
+                      </Box>
+                    </CardContent>
+                    <CardActions sx={{ p: 2, pt: 0 }}>
+                      <Button size="small" variant="outlined" startIcon={<MessageIcon />} fullWidth>
+                        Open Chat
+                      </Button>
+                    </CardActions>
+                  </Card>
+                </Grid>
+              ))}
+            </Grid>
+          )}
+
+          {/* Chat View */}
+          {viewMode === 1 && selectedChat && (
+            <Box sx={{ height: '70vh', display: 'flex', flexDirection: 'column' }}>
+              <Card sx={{ mb: 2, boxShadow: 3 }}>
+                <CardContent sx={{ py: 2 }}>
+                  <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                    <Box sx={{ display: 'flex', alignItems: 'center' }}>
+                      <IconButton onClick={() => setViewMode(0)} sx={{ mr: 1 }}>
+                        <MessageIcon />
+                      </IconButton>
+                      <Avatar sx={{ width: 40, height: 40, mr: 2, bgcolor: 'primary.main' }}>
+                        <PeopleIcon />
+                      </Avatar>
+                      <Box>
+                        <Typography variant="h6">
+                          {getConversationTitle(selectedChat)}
+                        </Typography>
+                        <Typography variant="body2" color="text.secondary">
+                          {selectedChat.id ? `Conversation ID: ${selectedChat.id}` : 'New conversation'}
                         </Typography>
                       </Box>
-                      <Typography variant="body2" color="text.secondary" noWrap>
-                        Conversation ID: {conversation.id}
-                      </Typography>
-                      <Chip
-                        label={formatTime(conversation.lastMessageAt)}
-                        size="small"
-                        variant="outlined"
-                        sx={{ mt: 0.5 }}
-                      />
+                    </Box>
+                    <Box>
+                      <IconButton>
+                        <MoreVertIcon />
+                      </IconButton>
                     </Box>
                   </Box>
                 </CardContent>
-
-                <CardActions sx={{ p: 2, pt: 0 }}>
-                  <Button size="small" variant="outlined" startIcon={<MessageIcon />} fullWidth>
-                    Open Chat
-                  </Button>
-                </CardActions>
               </Card>
-            </Grid>
-          ))}
-        </Grid>
-      )}
 
-      {/* Chat View */}
-      {viewMode === 1 && selectedChat && (
-        <Box sx={{ height: '70vh', display: 'flex', flexDirection: 'column' }}>
-          {/* Chat Header */}
-          <Card sx={{ mb: 2, boxShadow: 3 }}>
-            <CardContent sx={{ py: 2 }}>
-              <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-                <Box sx={{ display: 'flex', alignItems: 'center' }}>
-                  <IconButton onClick={() => setViewMode(0)} sx={{ mr: 1 }}>
-                    <MessageIcon />
-                  </IconButton>
-                  <Avatar sx={{ width: 40, height: 40, mr: 2, bgcolor: 'primary.main' }}>
-                    <PeopleIcon />
-                  </Avatar>
-                  <Box>
-                    <Typography variant="h6">
-                      {getConversationTitle(selectedChat)}
-                    </Typography>
-                    <Typography variant="body2" color="text.secondary">
-                      Conversation ID: {selectedChat.id}
-                    </Typography>
-                  </Box>
-                </Box>
-                <Box>
-                  <IconButton>
-                    <MoreVertIcon />
-                  </IconButton>
-                </Box>
-              </Box>
-            </CardContent>
-          </Card>
+              <Card sx={{ flexGrow: 1, mb: 2, boxShadow: 3 }}>
+                <CardContent sx={{ height: '100%', p: 0 }}>
+                  <Box sx={{ height: '100%', display: 'flex', flexDirection: 'column' }}>
+                    <Box ref={listRef} sx={{ flexGrow: 1, p: 2, overflowY: 'auto' }}>
+                      {messages.map((message) => (
+                        <Box key={message.id} sx={{ display: 'flex', justifyContent: message.senderId === user?.id ? 'flex-end' : 'flex-start', mb: 2 }}>
+                          <Box sx={{ maxWidth: '70%', bgcolor: message.senderId === user?.id ? 'primary.main' : 'grey.100', color: message.senderId === user?.id ? 'white' : 'text.primary', p: 2, borderRadius: 2 }}>
+                            {message.contentType === 'image' ? (
+                              <img src={message.body} alt="" style={{ maxWidth: '100%', borderRadius: 8 }} />
+                            ) : (
+                              <Typography variant="body2">{message.body}</Typography>
+                            )}
+                            <Typography variant="caption" sx={{ opacity: 0.7, display: 'block', mt: 1, textAlign: 'right' }}>
+                              {formatTime(message.sentAt)} {message.senderId === user?.id && (message.seenAt ? '✓✓' : '✓')}
+                            </Typography>
+                          </Box>
+                        </Box>
+                      ))}
+                      {peerTyping && <Typography variant="caption" color="text.secondary">Typing…</Typography>}
+                    </Box>
 
-          {/* Messages */}
-          <Card sx={{ flexGrow: 1, mb: 2, boxShadow: 3 }}>
-            <CardContent sx={{ height: '100%', p: 0 }}>
-              <Box sx={{ height: '100%', display: 'flex', flexDirection: 'column' }}>
-                {/* Messages List */}
-                <Box ref={listRef} sx={{ flexGrow: 1, p: 2, overflowY: 'auto' }}>
-                  {messages.map((message) => (
-                    <Box
-                      key={message.id}
-                      sx={{
-                        display: 'flex',
-                        justifyContent: message.senderId === user?.id ? 'flex-end' : 'flex-start',
-                        mb: 2
-                      }}
-                    >
-                      <Box
-                        sx={{
-                          maxWidth: '70%',
-                          bgcolor: message.senderId === user?.id ? 'primary.main' : 'grey.100',
-                          color: message.senderId === user?.id ? 'white' : 'text.primary',
-                          p: 2,
-                          borderRadius: 2,
-                          position: 'relative'
-                        }}
-                      >
-                        {message.contentType === 'image' ? (
-                          <img src={message.body} alt="" style={{ maxWidth: '100%', borderRadius: 8 }} />
-                        ) : (
-                          <Typography variant="body2">
-                            {message.body}
-                          </Typography>
-                        )}
-                        <Typography 
-                          variant="caption" 
-                          sx={{ 
-                            opacity: 0.7,
-                            display: 'block',
-                            mt: 1,
-                            textAlign: 'right'
+                    <Box sx={{ p: 2, borderTop: 1, borderColor: 'divider' }}>
+                      <Box sx={{ display: 'flex', gap: 1 }}>
+                        <TextField
+                          fullWidth
+                          placeholder="Type a message..."
+                          value={newMessage}
+                          onChange={(e) => setNewMessage(e.target.value)}
+                          onKeyDown={(e) => { if (e.key === 'Enter') handleSendMessage(); else emitTyping(); }}
+                          InputProps={{
+                            endAdornment: (
+                              <InputAdornment position="end">
+                                <IconButton component="label">
+                                  <AttachFileIcon />
+                                  <input type="file" accept="image/*" hidden onChange={onFilePick} />
+                                </IconButton>
+                              </InputAdornment>
+                            )
                           }}
-                        >
-                          {formatTime(message.sentAt)} {message.senderId === user?.id && (message.seenAt ? '✓✓' : '✓')}
-                        </Typography>
+                        />
+                        <Button variant="contained" onClick={handleSendMessage} disabled={!newMessage.trim()}>
+                          <SendIcon />
+                        </Button>
                       </Box>
                     </Box>
-                  ))}
-                  {peerTyping && <Typography variant="caption" color="text.secondary">Typing…</Typography>}
-                </Box>
-
-                {/* Message Input */}
-                <Box sx={{ p: 2, borderTop: 1, borderColor: 'divider' }}>
-                  <Box sx={{ display: 'flex', gap: 1 }}>
-                    <TextField
-                      fullWidth
-                      placeholder="Type a message..."
-                      value={newMessage}
-                      onChange={(e) => setNewMessage(e.target.value)}
-                      onKeyDown={(e) => { if (e.key === 'Enter') handleSendMessage(); else emitTyping(); }}
-                      InputProps={{
-                        endAdornment: (
-                          <InputAdornment position="end">
-                            <IconButton component="label">
-                              <AttachFileIcon />
-                              <input type="file" accept="image/*" hidden onChange={onFilePick} />
-                            </IconButton>
-                          </InputAdornment>
-                        )
-                      }}
-                    />
-                    <Button
-                      variant="contained"
-                      onClick={handleSendMessage}
-                      disabled={!newMessage.trim()}
-                    >
-                      <SendIcon />
-                    </Button>
                   </Box>
-                </Box>
-              </Box>
-            </CardContent>
-          </Card>
-        </Box>
-      )}
+                </CardContent>
+              </Card>
+            </Box>
+          )}
+        </Grid>
+      </Grid>
 
       {/* New Message Dialog */}
       <Dialog open={openDialog} onClose={handleCloseDialog} maxWidth="sm" fullWidth>
