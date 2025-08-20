@@ -246,10 +246,10 @@ const ParentDashboard = () => {
               <Typography variant="subtitle1" gutterBottom>
                 {activity.title}
               </Typography>
-              <Typography variant="body2" color="textSecondary">
+            <Typography variant="body2" color="textSecondary">
                 {activity.child} • {activity.time}
-              </Typography>
-            </Box>
+            </Typography>
+          </Box>
             <Chip 
               label={activity.value} 
               color={
@@ -259,9 +259,9 @@ const ParentDashboard = () => {
               } 
               size="small"
             />
-          </Box>
-        </CardContent>
-      </Card>
+        </Box>
+      </CardContent>
+    </Card>
     </ListItem>
   );
 
@@ -322,14 +322,14 @@ const ParentDashboard = () => {
         <Typography variant="h5" gutterBottom sx={{ fontWeight: 'bold', mb: 3 }}>
           Quick Access to Features
         </Typography>
-        <Grid container spacing={3}>
+      <Grid container spacing={3}>
           {featureCards.map((feature, index) => (
             <Grid item xs={12} sm={6} md={4} lg={3} key={index}>
               <FeatureCard {...feature} />
             </Grid>
           ))}
         </Grid>
-      </Box>
+            </Box>
 
       <Grid container spacing={3}>
         {/* Children Overview */}
@@ -337,12 +337,12 @@ const ParentDashboard = () => {
           <Paper sx={{ p: 3 }}>
             <Typography variant="h6" gutterBottom sx={{ fontWeight: 'bold' }}>
               Children Overview
-            </Typography>
+              </Typography>
             <Grid container spacing={2}>
               {children.map((child) => (
                 <Grid item xs={12} key={child.id}>
                   <Card>
-                    <CardContent>
+                <CardContent>
                       <Box sx={{ display: 'flex', alignItems: 'center', mb: 2 }}>
                         <Avatar src={child.image} sx={{ mr: 2 }}>
                           {child.name.split(' ').map(n => n[0]).join('')}
@@ -350,22 +350,22 @@ const ParentDashboard = () => {
                         <Box sx={{ flexGrow: 1 }}>
                           <Typography variant="h6" component="h2" gutterBottom>
                             {child.name}
-                          </Typography>
-                          <Typography variant="body2" color="textSecondary">
+                      </Typography>
+                      <Typography variant="body2" color="textSecondary">
                             {child.grade} • {child.courses} courses
-                          </Typography>
+                      </Typography>
                         </Box>
-                      </Box>
+                    </Box>
                       <Grid container spacing={2}>
                         <Grid item xs={6}>
                           <Box sx={{ textAlign: 'center' }}>
-                            <Typography variant="h6" color="primary">
+                      <Typography variant="h6" color="primary">
                               {child.averageGrade}%
                             </Typography>
                             <Typography variant="caption" color="textSecondary">
                               Average Grade
-                            </Typography>
-                          </Box>
+                      </Typography>
+                    </Box>
                         </Grid>
                         <Grid item xs={6}>
                           <Box sx={{ textAlign: 'center' }}>
@@ -375,19 +375,19 @@ const ParentDashboard = () => {
                             <Typography variant="caption" color="textSecondary">
                               Attendance
                             </Typography>
-                          </Box>
+                  </Box>
                         </Grid>
                       </Grid>
-                    </CardContent>
+                </CardContent>
                     <Box sx={{ display: 'flex', justifyContent: 'flex-end' }}>
                       <Button size="small" variant="outlined">
                         View Details
                       </Button>
                     </Box>
-                  </Card>
+              </Card>
                 </Grid>
-              ))}
-            </Grid>
+            ))}
+        </Grid>
           </Paper>
         </Grid>
 

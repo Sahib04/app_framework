@@ -156,10 +156,10 @@ const Students = () => {
     <Box sx={{ p: 3 }}>
       {/* Header */}
       <Box sx={{ mb: 4, display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-        <Box>
-          <Typography variant="h4" component="h1" gutterBottom>
-            Students
-          </Typography>
+    <Box>
+      <Typography variant="h4" component="h1" gutterBottom>
+        Students
+      </Typography>
           <Typography variant="body1" color="text.secondary">
             Manage student information and academic records
           </Typography>
@@ -492,7 +492,7 @@ const Students = () => {
         <DialogContent>
           <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
             Register a new student in the system.
-          </Typography>
+        </Typography>
           {/* Add form fields here */}
         </DialogContent>
         <DialogActions>

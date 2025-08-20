@@ -168,10 +168,10 @@ const Assignments = () => {
     <Box sx={{ p: 3 }}>
       {/* Header */}
       <Box sx={{ mb: 4, display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-        <Box>
-          <Typography variant="h4" component="h1" gutterBottom>
-            Assignments
-          </Typography>
+    <Box>
+      <Typography variant="h4" component="h1" gutterBottom>
+        Assignments
+      </Typography>
           <Typography variant="body1" color="text.secondary">
             Manage and track academic assignments and submissions
           </Typography>
@@ -496,7 +496,7 @@ const Assignments = () => {
         <DialogContent>
           <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
             Create a new assignment for your students.
-          </Typography>
+        </Typography>
           {/* Add form fields here */}
         </DialogContent>
         <DialogActions>

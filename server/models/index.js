@@ -2,38 +2,26 @@ const { sequelize } = require('../config/database');
 const User = require('./User');
 const Course = require('./Course');
 const Class = require('./Class');
+const Conversation = require('./Conversation');
+const Message = require('./Message');
+const Attachment = require('./Attachment');
 
-// Import other models (we'll create these next)
-// const Attendance = require('./Attendance');
-// const Grade = require('./Grade');
+// Associations
+Conversation.belongsTo(User, { as: 'teacher', foreignKey: 'teacherId' });
+Conversation.belongsTo(User, { as: 'student', foreignKey: 'studentId' });
 
-// Define associations
-// User.hasMany(Course, { as: 'instructedCourses', foreignKey: 'instructorId' });
-// Course.belongsTo(User, { as: 'instructor', foreignKey: 'instructorId' });
+Message.belongsTo(Conversation, { foreignKey: 'conversationId' });
+Message.belongsTo(User, { as: 'sender', foreignKey: 'senderId' });
+Message.belongsTo(User, { as: 'receiver', foreignKey: 'receiverId' });
 
-// User.hasMany(Class, { as: 'taughtClasses', foreignKey: 'teacherId' });
-// Class.belongsTo(User, { as: 'teacher', foreignKey: 'teacherId' });
-
-// User.hasMany(Attendance, { as: 'attendanceRecords', foreignKey: 'studentId' });
-// Attendance.belongsTo(User, { as: 'student', foreignKey: 'studentId' });
-
-// User.hasMany(Grade, { as: 'grades', foreignKey: 'studentId' });
-// Grade.belongsTo(User, { as: 'student', foreignKey: 'studentId' });
-
-// Course.hasMany(Class, { foreignKey: 'courseId' });
-// Class.belongsTo(Course, { foreignKey: 'courseId' });
-
-// Course.hasMany(Grade, { foreignKey: 'courseId' });
-// Grade.belongsTo(Course, { foreignKey: 'courseId' });
-
-// Class.hasMany(Attendance, { foreignKey: 'classId' });
-// Attendance.belongsTo(Class, { foreignKey: 'classId' });
+Attachment.belongsTo(Message, { foreignKey: 'messageId' });
 
 module.exports = {
-  sequelize,
-  User,
-  Course,
-  Class,
-  // Attendance,
-  // Grade
+	sequelize,
+	User,
+	Course,
+	Class,
+	Conversation,
+	Message,
+	Attachment,
 };

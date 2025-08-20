@@ -165,9 +165,9 @@ const Settings = () => {
     <Box sx={{ p: 3 }}>
       {/* Header */}
       <Box sx={{ mb: 4 }}>
-        <Typography variant="h4" component="h1" gutterBottom>
-          Settings
-        </Typography>
+      <Typography variant="h4" component="h1" gutterBottom>
+        Settings
+      </Typography>
         <Typography variant="body1" color="text.secondary">
           Customize your account preferences and system settings
         </Typography>
@@ -698,7 +698,7 @@ const Settings = () => {
                     <FormControl component="fieldset">
                       <Typography variant="body2" gutterBottom>
                         Time Format
-                      </Typography>
+        </Typography>
                       <RadioGroup defaultValue="12h">
                         <FormControlLabel value="12h" control={<Radio />} label="12-hour (AM/PM)" />
                         <FormControlLabel value="24h" control={<Radio />} label="24-hour" />

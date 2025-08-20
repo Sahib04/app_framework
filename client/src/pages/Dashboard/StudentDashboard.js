@@ -153,7 +153,7 @@ const StudentDashboard = () => {
                   </Typography>
                   <Typography variant="body2" color="textSecondary">
                     {progress}%
-                  </Typography>
+                </Typography>
                 </Box>
                 <LinearProgress
                   variant="determinate"
@@ -212,7 +212,7 @@ const StudentDashboard = () => {
         </Box>
         <Typography variant="body2" color="text.secondary">
           {description}
-        </Typography>
+            </Typography>
       </CardContent>
       <Button size="small" color="primary" fullWidth>
         Access {title}
@@ -277,14 +277,14 @@ const StudentDashboard = () => {
         <Typography variant="h5" gutterBottom sx={{ fontWeight: 'bold', mb: 3 }}>
           Quick Access to Features
         </Typography>
-        <Grid container spacing={3}>
+      <Grid container spacing={3}>
           {featureCards.map((feature, index) => (
             <Grid item xs={12} sm={6} md={4} lg={3} key={index}>
               <FeatureCard {...feature} />
             </Grid>
           ))}
         </Grid>
-      </Box>
+            </Box>
 
       <Grid container spacing={3}>
         {/* Current Courses */}
@@ -297,16 +297,16 @@ const StudentDashboard = () => {
               {courses.map((course) => (
                 <Grid item xs={12} key={course.id}>
                   <Card>
-                    <CardContent>
+                <CardContent>
                       <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', mb: 2 }}>
-                        <Box>
+                    <Box>
                           <Typography variant="h6" component="h2" gutterBottom>
                             {course.name}
-                          </Typography>
-                          <Typography variant="body2" color="textSecondary">
+                      </Typography>
+                        <Typography variant="body2" color="textSecondary">
                             {course.instructor}
-                          </Typography>
-                        </Box>
+                        </Typography>
+                      </Box>
                         <Chip label={course.grade} color="primary" />
                       </Box>
                       <Box sx={{ display: 'flex', justifyContent: 'space-between', mb: 1 }}>
@@ -324,10 +324,10 @@ const StudentDashboard = () => {
                     </CardContent>
                     <Button size="small" variant="outlined" fullWidth>
                       View Course
-                    </Button>
-                  </Card>
+                      </Button>
+              </Card>
                 </Grid>
-              ))}
+            ))}
             </Grid>
           </Paper>
         </Grid>
@@ -352,19 +352,19 @@ const StudentDashboard = () => {
                       <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                         <Typography variant="body2" color="textSecondary">
                           Due: {new Date(assignment.dueDate).toLocaleDateString()}
-                        </Typography>
+              </Typography>
                         <Chip 
                           label={assignment.status} 
                           color={assignment.status === 'Not Started' ? 'error' : 'warning'} 
                           size="small"
                         />
-                      </Box>
+            </Box>
                     </CardContent>
                     <Button size="small" variant="outlined" fullWidth>
                       View Assignment
                     </Button>
                   </Card>
-                </ListItem>
+              </ListItem>
               ))}
             </List>
           </Paper>

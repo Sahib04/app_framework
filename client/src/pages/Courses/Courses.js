@@ -116,10 +116,10 @@ const Courses = () => {
     <Box sx={{ p: 3 }}>
       {/* Header */}
       <Box sx={{ mb: 4, display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-        <Box>
-          <Typography variant="h4" component="h1" gutterBottom>
-            Courses
-          </Typography>
+    <Box>
+      <Typography variant="h4" component="h1" gutterBottom>
+        Courses
+      </Typography>
           <Typography variant="body1" color="text.secondary">
             Manage and explore all available courses
           </Typography>
@@ -344,7 +344,7 @@ const Courses = () => {
         <DialogContent>
           <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
             Create a new course for students to enroll in.
-          </Typography>
+        </Typography>
           {/* Add form fields here */}
         </DialogContent>
         <DialogActions>

@@ -185,9 +185,9 @@ const Profile = () => {
     <Box sx={{ p: 3 }}>
       {/* Header */}
       <Box sx={{ mb: 4 }}>
-        <Typography variant="h4" component="h1" gutterBottom>
-          Profile
-        </Typography>
+      <Typography variant="h4" component="h1" gutterBottom>
+        Profile
+      </Typography>
         <Typography variant="body1" color="text.secondary">
           Manage your personal information and preferences
         </Typography>
@@ -629,7 +629,7 @@ const Profile = () => {
         <DialogContent>
           <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
             Upload a new profile picture to personalize your account.
-          </Typography>
+        </Typography>
           {/* Add file upload component here */}
         </DialogContent>
         <DialogActions>

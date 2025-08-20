@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import {
   Box,
   Grid,
@@ -57,9 +57,13 @@ import {
   Archive as ArchiveIcon
 } from '@mui/icons-material';
 import { useAuth } from '../../contexts/AuthContext';
+import { io } from 'socket.io-client';
+
+const API_BASE = process.env.REACT_APP_API_URL ? `${process.env.REACT_APP_API_URL}/api` : 'http://localhost:5000/api';
+const WS_BASE = (process.env.REACT_APP_API_URL || 'http://localhost:5000').replace(/\/$/, '');
 
 const Messages = () => {
-  const { user } = useAuth();
+  const { user, token } = useAuth();
   const [searchTerm, setSearchTerm] = useState('');
   const [filterType, setFilterType] = useState('all');
   const [openDialog, setOpenDialog] = useState(false);
@@ -68,74 +72,77 @@ const Messages = () => {
   const [newMessage, setNewMessage] = useState('');
   const [drawerOpen, setDrawerOpen] = useState(false);
 
-  // Mock data - replace with actual API calls
-  const conversations = [
-    {
-      id: 1,
-      type: 'individual',
-      participants: [
-        { id: 1, name: 'Dr. Sarah Johnson', role: 'teacher', avatar: 'https://source.unsplash.com/100x100/?teacher-female', online: true },
-        { id: user?.id, name: user?.firstName + ' ' + user?.lastName, role: user?.role, avatar: user?.avatar }
-      ],
-      lastMessage: 'Please submit your assignment by Friday.',
-      lastMessageTime: '2024-02-10T14:30:00',
-      unreadCount: 2,
-      course: 'Advanced Mathematics',
-      messages: [
-        { id: 1, sender: 1, text: 'Hello! How is your progress on the calculus assignment?', time: '2024-02-10T14:00:00', read: true },
-        { id: 2, sender: user?.id, text: 'I\'m working on it. Should be done by Thursday.', time: '2024-02-10T14:15:00', read: true },
-        { id: 3, sender: 1, text: 'Great! Please submit your assignment by Friday.', time: '2024-02-10T14:30:00', read: false }
-      ]
-    },
-    {
-      id: 2,
-      type: 'group',
-      participants: [
-        { id: 1, name: 'Dr. Sarah Johnson', role: 'teacher', avatar: 'https://source.unsplash.com/100x100/?teacher-female', online: true },
-        { id: 2, name: 'Alex Johnson', role: 'student', avatar: 'https://source.unsplash.com/100x100/?student', online: false },
-        { id: 3, name: 'Maria Garcia', role: 'student', avatar: 'https://source.unsplash.com/100x100/?student-female', online: true },
-        { id: user?.id, name: user?.firstName + ' ' + user?.lastName, role: user?.role, avatar: user?.avatar }
-      ],
-      name: 'Math Study Group',
-      lastMessage: 'Let\'s meet tomorrow at 3 PM in the library.',
-      lastMessageTime: '2024-02-10T13:45:00',
-      unreadCount: 0,
-      course: 'Advanced Mathematics',
-      messages: [
-        { id: 1, sender: 1, text: 'Welcome everyone to the study group!', time: '2024-02-10T13:00:00', read: true },
-        { id: 2, sender: 2, text: 'Thanks for organizing this!', time: '2024-02-10T13:15:00', read: true },
-        { id: 3, sender: 3, text: 'Let\'s meet tomorrow at 3 PM in the library.', time: '2024-02-10T13:45:00', read: true }
-      ]
-    },
-    {
-      id: 3,
-      type: 'individual',
-      participants: [
-        { id: 4, name: 'Prof. Michael Chen', role: 'teacher', avatar: 'https://source.unsplash.com/100x100/?teacher-male', online: false },
-        { id: user?.id, name: user?.firstName + ' ' + user?.lastName, role: user?.role, avatar: user?.avatar }
-      ],
-      lastMessage: 'Your project looks great! Keep up the good work.',
-      lastMessageTime: '2024-02-09T16:20:00',
-      unreadCount: 0,
-      course: 'Computer Science Fundamentals',
-      messages: [
-        { id: 1, sender: user?.id, text: 'Hi Professor, I\'ve submitted my project. Could you take a look?', time: '2024-02-09T16:00:00', read: true },
-        { id: 2, sender: 4, text: 'Your project looks great! Keep up the good work.', time: '2024-02-09T16:20:00', read: true }
-      ]
-    }
-  ];
+  const [conversations, setConversations] = useState([]);
+  const [messages, setMessages] = useState([]);
+  const [peerTyping, setPeerTyping] = useState(false);
+  const listRef = useRef(null);
+  const socketRef = useRef(null);
 
-  const conversationTypes = ['all', 'individual', 'group'];
-  const courses = ['all', 'Advanced Mathematics', 'Computer Science Fundamentals', 'English Literature'];
+  // Socket connect
+  useEffect(() => {
+    if (!token) return;
+    const socket = io(WS_BASE, { auth: { token } });
+    socketRef.current = socket;
+    socket.on('message', ({ message }) => {
+      // If message belongs to selected chat, append
+      if (selectedChat && message.conversationId === selectedChat.id) {
+        setMessages(prev => [...prev, message]);
+        setTimeout(() => {
+          listRef.current?.scrollTo({ top: listRef.current.scrollHeight, behavior: 'smooth' });
+        }, 0);
+      }
+    });
+    socket.on('seen', ({ messageId, seenAt }) => {
+      setMessages(prev => prev.map(m => m.id === messageId ? { ...m, seenAt } : m));
+    });
+    return () => { socket.disconnect(); };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [token, selectedChat?.id]);
+
+  // Load conversations
+  useEffect(() => {
+    const loadConversations = async () => {
+      try {
+        const res = await fetch(`${API_BASE}/messages/conversations`, {
+          headers: { Authorization: `Bearer ${token}` }
+        });
+        const data = await res.json();
+        setConversations(Array.isArray(data) ? data : []);
+      } catch (e) {
+        // eslint-disable-next-line no-console
+        console.error('Failed to load conversations', e);
+      }
+    };
+    if (token) loadConversations();
+  }, [token]);
+
+  // Load messages for selected chat
+  useEffect(() => {
+    const loadMessages = async () => {
+      if (!selectedChat) return;
+      try {
+        const res = await fetch(`${API_BASE}/messages/${selectedChat.id}?limit=50`, {
+          headers: { Authorization: `Bearer ${token}` }
+        });
+        const data = await res.json();
+        setMessages(Array.isArray(data) ? data : []);
+        setTimeout(() => {
+          listRef.current?.scrollTo({ top: listRef.current.scrollHeight });
+        }, 0);
+      } catch (e) {
+        // eslint-disable-next-line no-console
+        console.error('Failed to load messages', e);
+      }
+    };
+    if (token && selectedChat) loadMessages();
+  }, [token, selectedChat]);
+
+  const conversationTypes = ['all', 'individual'];
 
   const filteredConversations = conversations.filter(conversation => {
-    const matchesSearch = 
-      conversation.participants.some(p => p.name.toLowerCase().includes(searchTerm.toLowerCase())) ||
-      (conversation.name && conversation.name.toLowerCase().includes(searchTerm.toLowerCase())) ||
-      conversation.lastMessage.toLowerCase().includes(searchTerm.toLowerCase());
-    const matchesType = filterType === 'all' || conversation.type === filterType;
-    
-    return matchesSearch && matchesType;
+    const matchesType = filterType === 'all' || 'individual' === filterType;
+    const matchesSearch = !searchTerm || String(conversation.id).toLowerCase().includes(searchTerm.toLowerCase());
+    return matchesType && matchesSearch;
   });
 
   const handleNewMessage = () => {
@@ -146,32 +153,84 @@ const Messages = () => {
     setOpenDialog(false);
   };
 
-  const handleSendMessage = () => {
-    if (newMessage.trim() && selectedChat) {
-      // Add message logic here
-      setNewMessage('');
+  const resolvePeerId = (conv) => {
+    if (!conv || !user) return null;
+    return user.id === conv.teacherId ? conv.studentId : conv.teacherId;
+  };
+
+  const handleSendMessage = async () => {
+    if (!newMessage.trim() || !selectedChat) return;
+    try {
+      const receiverId = resolvePeerId(selectedChat);
+      const res = await fetch(`${API_BASE}/messages`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${token}`
+        },
+        body: JSON.stringify({ receiverId, body: newMessage, contentType: 'text' })
+      });
+      const sent = await res.json();
+      if (res.ok) {
+        setMessages(prev => [...prev, sent]);
+        setNewMessage('');
+        setTimeout(() => {
+          listRef.current?.scrollTo({ top: listRef.current.scrollHeight, behavior: 'smooth' });
+        }, 0);
+      }
+    } catch (e) {
+      console.error('Failed to send', e);
     }
   };
 
-  const getOtherParticipant = (conversation) => {
-    if (conversation.type === 'individual') {
-      return conversation.participants.find(p => p.id !== user?.id);
+  const emitTyping = () => {
+    try {
+      if (!socketRef.current || !selectedChat) return;
+      const to = resolvePeerId(selectedChat);
+      if (!to) return;
+      socketRef.current.emit('typing', { to });
+    } catch (e) {
+      // ignore
     }
-    return null;
   };
 
-  const formatTime = (timeString) => {
-    const date = new Date(timeString);
-    const now = new Date();
-    const diffInHours = (now - date) / (1000 * 60 * 60);
-    
-    if (diffInHours < 24) {
-      return date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
-    } else if (diffInHours < 48) {
-      return 'Yesterday';
-    } else {
-      return date.toLocaleDateString();
+  const onFilePick = async (e) => {
+    const file = e.target.files?.[0];
+    if (!file || !selectedChat) return;
+    try {
+      const receiverId = resolvePeerId(selectedChat);
+      const form = new FormData();
+      form.append('file', file);
+      form.append('receiverId', receiverId);
+      const res = await fetch(`${API_BASE}/messages/upload-photo`, {
+        method: 'POST',
+        headers: { Authorization: `Bearer ${token}` },
+        body: form,
+      });
+      const sent = await res.json();
+      if (res.ok) {
+        setMessages(prev => [...prev, sent]);
+        setTimeout(() => {
+          listRef.current?.scrollTo({ top: listRef.current.scrollHeight, behavior: 'smooth' });
+        }, 0);
+      }
+    } catch (err) {
+      console.error('image upload failed', err);
     }
+  };
+
+  const getConversationTitle = (conversation) => {
+    if (!user || !conversation) return 'Conversation';
+    const mineIsTeacher = user.role === 'teacher' && user.id === conversation.teacherId;
+    if (mineIsTeacher) return 'Chat with student';
+    if (user.role === 'student' && user.id === conversation.studentId) return 'Chat with teacher';
+    return 'Conversation';
+  };
+
+  const formatTime = (isoString) => {
+    if (!isoString) return '';
+    const date = new Date(isoString);
+    return date.toLocaleString();
   };
 
   return (
@@ -183,7 +242,7 @@ const Messages = () => {
             Messages
           </Typography>
           <Typography variant="body1" color="text.secondary">
-            Communicate with teachers, students, and study groups
+            Communicate with teachers and students
           </Typography>
         </Box>
         <Fab
@@ -202,7 +261,7 @@ const Messages = () => {
           <Grid item xs={12} md={6}>
             <TextField
               fullWidth
-              placeholder="Search conversations or people..."
+              placeholder="Search conversations..."
               value={searchTerm}
               onChange={(e) => setSearchTerm(e.target.value)}
               InputProps={{
@@ -220,7 +279,7 @@ const Messages = () => {
               >
                 {conversationTypes.map((type) => (
                   <MenuItem key={type} value={type}>
-                    {type === 'all' ? 'All Types' : type === 'individual' ? 'Individual' : 'Group'}
+                    {type === 'all' ? 'All Types' : 'Individual'}
                   </MenuItem>
                 ))}
               </Select>
@@ -272,107 +331,26 @@ const Messages = () => {
                 <CardContent sx={{ flexGrow: 1 }}>
                   {/* Header */}
                   <Box sx={{ display: 'flex', alignItems: 'flex-start', mb: 2 }}>
-                    {conversation.type === 'individual' ? (
-                      <Avatar
-                        src={getOtherParticipant(conversation)?.avatar}
-                        sx={{ width: 50, height: 50, mr: 2 }}
-                      >
-                        {getOtherParticipant(conversation)?.name.split(' ').map(n => n[0]).join('')}
-                      </Avatar>
-                    ) : (
-                      <Avatar sx={{ width: 50, height: 50, mr: 2, bgcolor: 'primary.main' }}>
-                        <PeopleIcon />
-                      </Avatar>
-                    )}
+                    <Avatar sx={{ width: 50, height: 50, mr: 2, bgcolor: 'primary.main' }}>
+                      <PeopleIcon />
+                    </Avatar>
                     <Box sx={{ flexGrow: 1 }}>
                       <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
                         <Typography variant="h6" component="h2" noWrap>
-                          {conversation.type === 'individual' 
-                            ? getOtherParticipant(conversation)?.name 
-                            : conversation.name
-                          }
+                          {getConversationTitle(conversation)}
                         </Typography>
-                        {conversation.unreadCount > 0 && (
-                          <Badge badgeContent={conversation.unreadCount} color="primary">
-                            <MessageIcon fontSize="small" />
-                          </Badge>
-                        )}
                       </Box>
                       <Typography variant="body2" color="text.secondary" noWrap>
-                        {conversation.type === 'individual' 
-                          ? getOtherParticipant(conversation)?.role 
-                          : `${conversation.participants.length} participants`
-                        }
+                        Conversation ID: {conversation.id}
                       </Typography>
                       <Chip
-                        label={conversation.course}
+                        label={formatTime(conversation.lastMessageAt)}
                         size="small"
                         variant="outlined"
                         sx={{ mt: 0.5 }}
                       />
                     </Box>
                   </Box>
-
-                  <Divider sx={{ my: 2 }} />
-
-                  {/* Last Message */}
-                  <Box sx={{ mb: 2 }}>
-                    <Typography variant="body2" color="text.secondary" sx={{ mb: 1 }}>
-                      {conversation.lastMessage}
-                    </Typography>
-                    <Typography variant="caption" color="text.secondary">
-                      {formatTime(conversation.lastMessageTime)}
-                    </Typography>
-                  </Box>
-
-                  {/* Participants (for group chats) */}
-                  {conversation.type === 'group' && (
-                    <Box sx={{ mb: 2 }}>
-                      <Typography variant="subtitle2" gutterBottom>
-                        Participants
-                      </Typography>
-                      <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 0.5 }}>
-                        {conversation.participants.slice(0, 3).map((participant) => (
-                          <Chip
-                            key={participant.id}
-                            label={participant.name}
-                            size="small"
-                            variant="outlined"
-                            avatar={
-                              <Avatar src={participant.avatar} sx={{ width: 20, height: 20 }}>
-                                {participant.name.split(' ').map(n => n[0]).join('')}
-                              </Avatar>
-                            }
-                          />
-                        ))}
-                        {conversation.participants.length > 3 && (
-                          <Chip
-                            label={`+${conversation.participants.length - 3}`}
-                            size="small"
-                            variant="outlined"
-                          />
-                        )}
-                      </Box>
-                    </Box>
-                  )}
-
-                  {/* Online Status */}
-                  {conversation.type === 'individual' && (
-                    <Box sx={{ display: 'flex', alignItems: 'center', mt: 'auto' }}>
-                      <Box
-                        sx={{
-                          width: 8,
-                          height: 8,
-                          borderRadius: '50%',
-                          bgcolor: getOtherParticipant(conversation)?.online ? 'success.main' : 'text.disabled',
-                          mr: 1
-                        }}
-                      />
-                      <Typography variant="caption" color="text.secondary">
-                        {getOtherParticipant(conversation)?.online ? 'Online' : 'Offline'}
-                      </Typography>
-                    </Box>
-                  )}
                 </CardContent>
 
                 <CardActions sx={{ p: 2, pt: 0 }}>
@@ -397,27 +375,15 @@ const Messages = () => {
                   <IconButton onClick={() => setViewMode(0)} sx={{ mr: 1 }}>
                     <MessageIcon />
                   </IconButton>
-                  {selectedChat.type === 'individual' ? (
-                    <Avatar
-                      src={getOtherParticipant(selectedChat)?.avatar}
-                      sx={{ width: 40, height: 40, mr: 2 }}
-                    >
-                      {getOtherParticipant(selectedChat)?.name.split(' ').map(n => n[0]).join('')}
-                    </Avatar>
-                  ) : (
-                    <Avatar sx={{ width: 40, height: 40, mr: 2, bgcolor: 'primary.main' }}>
-                      <PeopleIcon />
-                    </Avatar>
-                  )}
+                  <Avatar sx={{ width: 40, height: 40, mr: 2, bgcolor: 'primary.main' }}>
+                    <PeopleIcon />
+                  </Avatar>
                   <Box>
                     <Typography variant="h6">
-                      {selectedChat.type === 'individual' 
-                        ? getOtherParticipant(selectedChat)?.name 
-                        : selectedChat.name
-                      }
+                      {getConversationTitle(selectedChat)}
                     </Typography>
                     <Typography variant="body2" color="text.secondary">
-                      {selectedChat.course}
+                      Conversation ID: {selectedChat.id}
                     </Typography>
                   </Box>
                 </Box>
@@ -435,29 +401,33 @@ const Messages = () => {
             <CardContent sx={{ height: '100%', p: 0 }}>
               <Box sx={{ height: '100%', display: 'flex', flexDirection: 'column' }}>
                 {/* Messages List */}
-                <Box sx={{ flexGrow: 1, p: 2, overflowY: 'auto' }}>
-                  {selectedChat.messages.map((message) => (
+                <Box ref={listRef} sx={{ flexGrow: 1, p: 2, overflowY: 'auto' }}>
+                  {messages.map((message) => (
                     <Box
                       key={message.id}
                       sx={{
                         display: 'flex',
-                        justifyContent: message.sender === user?.id ? 'flex-end' : 'flex-start',
+                        justifyContent: message.senderId === user?.id ? 'flex-end' : 'flex-start',
                         mb: 2
                       }}
                     >
                       <Box
                         sx={{
                           maxWidth: '70%',
-                          bgcolor: message.sender === user?.id ? 'primary.main' : 'grey.100',
-                          color: message.sender === user?.id ? 'white' : 'text.primary',
+                          bgcolor: message.senderId === user?.id ? 'primary.main' : 'grey.100',
+                          color: message.senderId === user?.id ? 'white' : 'text.primary',
                           p: 2,
                           borderRadius: 2,
                           position: 'relative'
                         }}
                       >
-                        <Typography variant="body2">
-                          {message.text}
-                        </Typography>
+                        {message.contentType === 'image' ? (
+                          <img src={message.body} alt="" style={{ maxWidth: '100%', borderRadius: 8 }} />
+                        ) : (
+                          <Typography variant="body2">
+                            {message.body}
+                          </Typography>
+                        )}
                         <Typography 
                           variant="caption" 
                           sx={{ 
@@ -467,11 +437,12 @@ const Messages = () => {
                             textAlign: 'right'
                           }}
                         >
-                          {formatTime(message.time)}
+                          {formatTime(message.sentAt)} {message.senderId === user?.id && (message.seenAt ? '✓✓' : '✓')}
                         </Typography>
                       </Box>
                     </Box>
                   ))}
+                  {peerTyping && <Typography variant="caption" color="text.secondary">Typing…</Typography>}
                 </Box>
 
                 {/* Message Input */}
@@ -482,12 +453,13 @@ const Messages = () => {
                       placeholder="Type a message..."
                       value={newMessage}
                       onChange={(e) => setNewMessage(e.target.value)}
-                      onKeyPress={(e) => e.key === 'Enter' && handleSendMessage()}
+                      onKeyDown={(e) => { if (e.key === 'Enter') handleSendMessage(); else emitTyping(); }}
                       InputProps={{
                         endAdornment: (
                           <InputAdornment position="end">
-                            <IconButton>
+                            <IconButton component="label">
                               <AttachFileIcon />
+                              <input type="file" accept="image/*" hidden onChange={onFilePick} />
                             </IconButton>
                           </InputAdornment>
                         )
@@ -515,7 +487,7 @@ const Messages = () => {
           <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
             Start a new conversation or send a message.
           </Typography>
-          {/* Add form fields here */}
+          {/* TODO: implement user search and select teacher/student */}
         </DialogContent>
         <DialogActions>
           <Button onClick={handleCloseDialog}>Cancel</Button>

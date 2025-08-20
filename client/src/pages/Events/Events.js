@@ -215,10 +215,10 @@ const Events = () => {
     <Box sx={{ p: 3 }}>
       {/* Header */}
       <Box sx={{ mb: 4, display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-        <Box>
-          <Typography variant="h4" component="h1" gutterBottom>
-            Events
-          </Typography>
+    <Box>
+      <Typography variant="h4" component="h1" gutterBottom>
+        Events
+      </Typography>
           <Typography variant="body1" color="text.secondary">
             Discover and participate in school events and activities
           </Typography>
@@ -502,14 +502,14 @@ const Events = () => {
                       </Box>
                       <Typography variant="body2" color="text.secondary">
                         {formatDateTime(event.startDate)}
-                      </Typography>
+        </Typography>
                     </>
                   }
                 />
               </ListItem>
             ))}
           </List>
-        </Paper>
+      </Paper>
       )}
 
       {/* List View */}

@@ -211,8 +211,8 @@ const Fees = () => {
     <Box sx={{ p: 3 }}>
       {/* Header */}
       <Box sx={{ mb: 4, display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-        <Box>
-          <Typography variant="h4" component="h1" gutterBottom>
+    <Box>
+      <Typography variant="h4" component="h1" gutterBottom>
             Fees & Payments
           </Typography>
           <Typography variant="body1" color="text.secondary">
@@ -636,12 +636,12 @@ const Fees = () => {
         <Paper sx={{ p: 3, boxShadow: 3 }}>
           <Typography variant="h6" gutterBottom>
             Payment Timeline
-          </Typography>
+      </Typography>
           {/* Timeline component was removed, so this section is now a placeholder */}
           <Typography variant="body2" color="text.secondary">
             Timeline view is not available in this version.
-          </Typography>
-        </Paper>
+        </Typography>
+      </Paper>
       )}
 
       {/* Add Fee Dialog */}
