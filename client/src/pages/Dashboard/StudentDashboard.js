@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   Box,
   Container,
@@ -16,7 +16,8 @@ import {
   Avatar,
   IconButton,
   Fab,
-  LinearProgress
+  LinearProgress,
+  TextField
 } from '@mui/material';
 import {
   Class,
@@ -39,8 +40,33 @@ import { useAuth } from '../../contexts/AuthContext';
 import { useNavigate } from 'react-router-dom';
 
 const StudentDashboard = () => {
-  const { user } = useAuth();
+  const { user, token } = useAuth();
   const navigate = useNavigate();
+  const API_BASE = process.env.REACT_APP_API_URL ? `${process.env.REACT_APP_API_URL}/api` : 'http://localhost:5000/api';
+
+  const [teachers, setTeachers] = useState([]);
+  const [loadingTeachers, setLoadingTeachers] = useState(false);
+  const [searchTeachers, setSearchTeachers] = useState('');
+
+  useEffect(() => {
+    const loadTeachers = async () => {
+      if (!token) return;
+      try {
+        setLoadingTeachers(true);
+        const qs = searchTeachers ? `?search=${encodeURIComponent(searchTeachers)}` : '';
+        const res = await fetch(`${API_BASE}/users/peers${qs}`, { headers: { Authorization: `Bearer ${token}` } });
+        const data = await res.json();
+        // peers for student => teachers
+        setTeachers(Array.isArray(data) ? data : []);
+      } catch (e) {
+        // eslint-disable-next-line no-console
+        console.error('Failed to load teachers', e);
+      } finally {
+        setLoadingTeachers(false);
+      }
+    };
+    loadTeachers();
+  }, [token, searchTeachers]);
 
   const stats = {
     totalCourses: 6,
@@ -285,6 +311,41 @@ const StudentDashboard = () => {
           ))}
         </Grid>
             </Box>
+
+      {/* Teachers Directory */}
+      <Box sx={{ mb: 4 }}>
+        <Paper sx={{ p: 3 }}>
+          <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 2 }}>
+            <Typography variant="h6" sx={{ fontWeight: 'bold' }}>Teachers</Typography>
+            <TextField
+              size="small"
+              placeholder="Search teachers..."
+              value={searchTeachers}
+              onChange={(e) => setSearchTeachers(e.target.value)}
+            />
+          </Box>
+          {loadingTeachers ? (
+            <Typography variant="body2">Loading...</Typography>
+          ) : (
+            <List>
+              {teachers.map((t) => (
+                <ListItem key={t.id}
+                  secondaryAction={
+                    <Button size="small" variant="outlined" onClick={() => navigate('/messages')}>
+                      Message
+                    </Button>
+                  }
+                >
+                  <ListItemIcon>
+                    <Avatar src={t.profilePicture}>{t.firstName?.[0]}{t.lastName?.[0]}</Avatar>
+                  </ListItemIcon>
+                  <ListItemText primary={`${t.firstName} ${t.lastName}`} secondary={t.email} />
+                </ListItem>
+              ))}
+            </List>
+          )}
+        </Paper>
+      </Box>
 
       <Grid container spacing={3}>
         {/* Current Courses */}

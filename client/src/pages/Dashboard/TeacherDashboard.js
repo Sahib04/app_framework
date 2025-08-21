@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   Box,
   Container,
@@ -16,7 +16,8 @@ import {
   Avatar,
   IconButton,
   Fab,
-  CardActions
+  CardActions,
+  TextField
 } from '@mui/material';
 import {
   Class,
@@ -40,8 +41,57 @@ import { useAuth } from '../../contexts/AuthContext';
 import { useNavigate } from 'react-router-dom';
 
 const TeacherDashboard = () => {
-  const { user } = useAuth();
+  const { user, token } = useAuth();
   const navigate = useNavigate();
+
+  const API_BASE = process.env.REACT_APP_API_URL ? `${process.env.REACT_APP_API_URL}/api` : 'http://localhost:5000/api';
+
+  const [students, setStudents] = useState([]);
+  const [studentsLoading, setStudentsLoading] = useState(false);
+  const [search, setSearch] = useState('');
+  const [expandedStudentId, setExpandedStudentId] = useState(null);
+  const [guardiansByStudent, setGuardiansByStudent] = useState({});
+
+  useEffect(() => {
+    const loadStudents = async () => {
+      if (!token) return;
+      try {
+        setStudentsLoading(true);
+        const qs = search ? `?search=${encodeURIComponent(search)}` : '';
+        const res = await fetch(`${API_BASE}/users/peers${qs}`, { headers: { Authorization: `Bearer ${token}` } });
+        const data = await res.json();
+        // peers for teacher => students
+        setStudents(Array.isArray(data) ? data : []);
+      } catch (e) {
+        // eslint-disable-next-line no-console
+        console.error('Failed to load students', e);
+      } finally {
+        setStudentsLoading(false);
+      }
+    };
+    loadStudents();
+  }, [token, search]);
+
+  const toggleGuardians = async (student) => {
+    const id = student?.id;
+    if (!id) return;
+    if (expandedStudentId === id) {
+      setExpandedStudentId(null);
+      return;
+    }
+    setExpandedStudentId(id);
+    if (!guardiansByStudent[id]) {
+      try {
+        const res = await fetch(`${API_BASE}/users/guardians-of/${id}`, { headers: { Authorization: `Bearer ${token}` } });
+        const data = await res.json();
+        setGuardiansByStudent(prev => ({ ...prev, [id]: Array.isArray(data?.guardians) ? data.guardians : [] }));
+      } catch (e) {
+        // eslint-disable-next-line no-console
+        console.error('Failed to load guardians', e);
+        setGuardiansByStudent(prev => ({ ...prev, [id]: [] }));
+      }
+    }
+  };
 
   const stats = {
     totalClasses: 6,
@@ -264,6 +314,61 @@ const TeacherDashboard = () => {
             </Grid>
           ))}
         </Grid>
+      </Box>
+
+      {/* Students List with Guardians */}
+      <Box sx={{ mb: 4 }}>
+        <Paper sx={{ p: 3 }}>
+          <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 2 }}>
+            <Typography variant="h6" sx={{ fontWeight: 'bold' }}>Students</Typography>
+            <TextField
+              size="small"
+              placeholder="Search students..."
+              value={search}
+              onChange={(e) => setSearch(e.target.value)}
+            />
+          </Box>
+          {studentsLoading ? (
+            <Typography variant="body2">Loading...</Typography>
+          ) : (
+            <List>
+              {students.map((s) => (
+                <React.Fragment key={s.id}>
+                  <ListItem
+                    secondaryAction={
+                      <Button size="small" variant="outlined" onClick={() => toggleGuardians(s)}>
+                        {expandedStudentId === s.id ? 'Hide Guardians' : 'View Guardians'}
+                      </Button>
+                    }
+                  >
+                    <ListItemIcon>
+                      <Avatar src={s.profilePicture}>{s.firstName?.[0]}{s.lastName?.[0]}</Avatar>
+                    </ListItemIcon>
+                    <ListItemText primary={`${s.firstName} ${s.lastName}`} secondary={s.email} />
+                  </ListItem>
+                  {expandedStudentId === s.id && (
+                    <Box sx={{ pl: 9, pr: 2, pb: 2 }}>
+                      <Typography variant="subtitle2" sx={{ mb: 1 }}>Guardians</Typography>
+                      <List dense>
+                        {(guardiansByStudent[s.id] || []).length === 0 && (
+                          <ListItem><ListItemText primary="No guardians found" /></ListItem>
+                        )}
+                        {(guardiansByStudent[s.id] || []).map(g => (
+                          <ListItem key={g.id}>
+                            <ListItemIcon>
+                              <Avatar src={g.profilePicture}>{g.firstName?.[0]}{g.lastName?.[0]}</Avatar>
+                            </ListItemIcon>
+                            <ListItemText primary={`${g.firstName} ${g.lastName}`} secondary={g.email} />
+                          </ListItem>
+                        ))}
+                      </List>
+                    </Box>
+                  )}
+                </React.Fragment>
+              ))}
+            </List>
+          )}
+        </Paper>
       </Box>
 
       {/* Current Classes */}

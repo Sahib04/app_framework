@@ -22,6 +22,8 @@ const Users = () => {
 
   // Create/Edit Dialog
   const isAdmin = user?.role === 'admin';
+  const isTeacher = user?.role === 'teacher';
+  const isStudent = user?.role === 'student';
   const [editOpen, setEditOpen] = useState(false);
   const [editMode, setEditMode] = useState(null); // 'student' | 'teacher'
   const [editData, setEditData] = useState({});
@@ -75,17 +77,57 @@ const Users = () => {
   };
 
   const loadStudents = async () => {
-    const res = await fetch(`${API_BASE}/users?role=student&limit=100`, { headers: { Authorization: `Bearer ${token}` } });
-    const data = await res.json();
-    setStudents(data.users || []);
+    try {
+      let url = '';
+      if (isAdmin) {
+        url = `${API_BASE}/users?role=student&limit=100`;
+      } else if (isTeacher) {
+        // Teacher sees students via peers
+        url = `${API_BASE}/users/peers`;
+      } else {
+        // Others not allowed
+        setStudents([]);
+        return;
+      }
+      const res = await fetch(url, { headers: { Authorization: `Bearer ${token}` } });
+      const data = await res.json();
+      const list = isAdmin ? (data.users || []) : (Array.isArray(data) ? data : []);
+      setStudents(list);
+    } catch (e) {
+      // eslint-disable-next-line no-console
+      console.error('Failed to load students', e);
+      setStudents([]);
+    }
   };
   const loadTeachers = async () => {
-    const res = await fetch(`${API_BASE}/users?role=teacher&limit=100`, { headers: { Authorization: `Bearer ${token}` } });
-    const data = await res.json();
-    setTeachers(data.users || []);
+    try {
+      let url = '';
+      if (isAdmin) {
+        url = `${API_BASE}/users?role=teacher&limit=100`;
+      } else if (isStudent) {
+        // Student sees teachers via peers
+        url = `${API_BASE}/users/peers`;
+      } else {
+        setTeachers([]);
+        return;
+      }
+      const res = await fetch(url, { headers: { Authorization: `Bearer ${token}` } });
+      const data = await res.json();
+      const list = isAdmin ? (data.users || []) : (Array.isArray(data) ? data : []);
+      setTeachers(list);
+    } catch (e) {
+      // eslint-disable-next-line no-console
+      console.error('Failed to load teachers', e);
+      setTeachers([]);
+    }
   };
 
-  useEffect(() => { if (token) { loadStudents(); loadTeachers(); } }, [token]);
+  useEffect(() => { 
+    if (!token) return;
+    if (isAdmin || isTeacher) loadStudents();
+    if (isAdmin || isStudent) loadTeachers();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [token, isAdmin, isTeacher, isStudent]);
 
   const filteredStudents = students.filter(s => (`${s.firstName} ${s.lastName}`.toLowerCase().includes(search.toLowerCase()) || (s.email || '').toLowerCase().includes(search.toLowerCase())));
   const filteredTeachers = teachers.filter(t => (`${t.firstName} ${t.lastName}`.toLowerCase().includes(search.toLowerCase()) || (t.email || '').toLowerCase().includes(search.toLowerCase())));
@@ -147,13 +189,15 @@ const Users = () => {
         </Box>
       </Box>
 
-      <Tabs value={tab} onChange={(e, v) => setTab(v)} sx={{ mb: 2 }}>
-        <Tab label="Students" icon={<PeopleIcon />} iconPosition="start" />
-        <Tab label="Teachers" icon={<SchoolIcon />} iconPosition="start" />
-      </Tabs>
+      {isAdmin && (
+        <Tabs value={tab} onChange={(e, v) => setTab(v)} sx={{ mb: 2 }}>
+          <Tab label="Students" icon={<PeopleIcon />} iconPosition="start" />
+          <Tab label="Teachers" icon={<SchoolIcon />} iconPosition="start" />
+        </Tabs>
+      )}
 
       {/* Students */}
-      {tab === 0 && (
+      {(isAdmin && tab === 0) || isTeacher ? (
         <Grid container spacing={2}>
           {filteredStudents.map(st => (
             <Grid item xs={12} md={6} lg={4} key={st.id}>
@@ -196,10 +240,10 @@ const Users = () => {
             </Grid>
           ))}
         </Grid>
-      )}
+      ) : null}
 
       {/* Teachers */}
-      {tab === 1 && (
+      {(isAdmin && tab === 1) || isStudent ? (
         <Grid container spacing={2}>
           {filteredTeachers.map(tc => (
             <Grid item xs={12} md={6} lg={4} key={tc.id}>
@@ -238,7 +282,7 @@ const Users = () => {
             </Grid>
           ))}
         </Grid>
-      )}
+      ) : null}
 
       {/* Details Dialog (read-only) */}
       <Dialog open={detailOpen} onClose={closeDetails} maxWidth="sm" fullWidth>
