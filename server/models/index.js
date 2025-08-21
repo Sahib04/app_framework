@@ -14,6 +14,8 @@ Message.belongsTo(Conversation, { foreignKey: 'conversationId' });
 Message.belongsTo(User, { as: 'sender', foreignKey: 'senderId' });
 Message.belongsTo(User, { as: 'receiver', foreignKey: 'receiverId' });
 
+// Message attachments
+Message.hasOne(Attachment, { foreignKey: 'messageId', as: 'attachment' });
 Attachment.belongsTo(Message, { foreignKey: 'messageId' });
 
 module.exports = {

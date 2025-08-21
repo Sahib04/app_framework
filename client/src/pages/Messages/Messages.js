@@ -217,17 +217,27 @@ const Messages = () => {
     return user.role === 'teacher' ? conv.studentId : conv.teacherId;
   };
 
+  const isUrl = (text) => {
+    try {
+      const url = new URL(text);
+      return url.protocol === 'http:' || url.protocol === 'https:';
+    } catch (_) {
+      return false;
+    }
+  };
+
   const handleSendMessage = async () => {
     if (!newMessage.trim()) return;
     try {
       const receiverId = resolvePeerId(selectedChat);
+      const contentType = isUrl(newMessage.trim()) ? 'link' : 'text';
       const res = await fetch(`${API_BASE}/messages`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
           Authorization: `Bearer ${token}`
         },
-        body: JSON.stringify({ receiverId, body: newMessage, contentType: 'text' })
+        body: JSON.stringify({ receiverId, body: newMessage, contentType })
       });
       const sent = await res.json();
       if (res.ok) {
@@ -269,7 +279,7 @@ const Messages = () => {
       const form = new FormData();
       form.append('file', file);
       form.append('receiverId', receiverId);
-      const res = await fetch(`${API_BASE}/messages/upload-photo`, {
+      const res = await fetch(`${API_BASE}/messages/upload`, {
         method: 'POST',
         headers: { Authorization: `Bearer ${token}` },
         body: form,
@@ -459,9 +469,31 @@ const Messages = () => {
                       {messages.map((message) => (
                         <Box key={message.id} sx={{ display: 'flex', justifyContent: message.senderId === user?.id ? 'flex-end' : 'flex-start', mb: 2 }}>
                           <Box sx={{ maxWidth: '70%', bgcolor: message.senderId === user?.id ? 'primary.main' : 'grey.100', color: message.senderId === user?.id ? 'white' : 'text.primary', p: 2, borderRadius: 2 }}>
-                            {message.contentType === 'image' ? (
-                              <img src={message.body} alt="" style={{ maxWidth: '100%', borderRadius: 8 }} />
-                            ) : (
+                            {message.contentType === 'image' && (
+                              <img src={message.body} alt="attachment" style={{ maxWidth: '100%', borderRadius: 8 }} />
+                            )}
+                            {message.contentType === 'video' && (
+                              <video controls src={message.body} style={{ maxWidth: '100%', borderRadius: 8 }} />
+                            )}
+                            {message.contentType === 'audio' && (
+                              <audio controls src={message.body} style={{ width: '100%' }} />
+                            )}
+                            {(message.contentType === 'document' || message.contentType === 'file') && (
+                              <Box>
+                                <Typography variant="body2" sx={{ mb: 0.5 }}>Attachment</Typography>
+                                <Button component="a" href={message.body} target="_blank" rel="noopener noreferrer" variant="outlined" size="small">
+                                  Download
+                                </Button>
+                              </Box>
+                            )}
+                            {message.contentType === 'link' && (
+                              <Typography variant="body2">
+                                <a href={message.body} target="_blank" rel="noopener noreferrer" style={{ color: 'inherit', textDecoration: 'underline' }}>
+                                  {message.body}
+                                </a>
+                              </Typography>
+                            )}
+                            {message.contentType === 'text' && (
                               <Typography variant="body2">{message.body}</Typography>
                             )}
                             <Typography variant="caption" sx={{ opacity: 0.7, display: 'block', mt: 1, textAlign: 'right' }}>
@@ -486,7 +518,7 @@ const Messages = () => {
                               <InputAdornment position="end">
                                 <IconButton component="label">
                                   <AttachFileIcon />
-                                  <input type="file" accept="image/*" hidden onChange={onFilePick} />
+                                  <input type="file" hidden onChange={onFilePick} />
                                 </IconButton>
                               </InputAdornment>
                             )
