@@ -7,6 +7,10 @@ const authenticateToken = async (req, res, next) => {
     const authHeader = req.headers['authorization'];
     const token = authHeader && authHeader.split(' ')[1]; // Bearer TOKEN
 
+    console.log('=== AUTH DEBUG ===');
+    console.log('Auth header:', authHeader);
+    console.log('Token:', token ? `${token.substring(0, 20)}...` : 'No token');
+
     if (!token) {
       return res.status(401).json({ 
         success: false, 
@@ -15,11 +19,19 @@ const authenticateToken = async (req, res, next) => {
     }
 
     const decoded = jwt.verify(token, process.env.JWT_SECRET);
+    console.log('Decoded token:', decoded);
     
     // Find user and check if active
     const user = await User.findByPk(decoded.userId, {
       attributes: { exclude: ['password'] }
     });
+    
+    console.log('Found user:', user ? {
+      id: user.id,
+      role: user.role,
+      email: user.email,
+      isActive: user.isActive
+    } : 'No user found');
     
     if (!user) {
       return res.status(401).json({ 
@@ -44,8 +56,15 @@ const authenticateToken = async (req, res, next) => {
     }
 
     req.user = user;
+    console.log('Set req.user:', {
+      id: req.user.id,
+      role: req.user.role,
+      email: req.user.email
+    });
+    console.log('==================');
     next();
   } catch (error) {
+    console.error('Auth middleware error:', error);
     if (error.name === 'JsonWebTokenError') {
       return res.status(401).json({ 
         success: false, 
@@ -68,20 +87,36 @@ const authenticateToken = async (req, res, next) => {
 // Role-based authorization middleware
 const authorizeRoles = (...roles) => {
   return (req, res, next) => {
+    console.log('=== ROLE CHECK DEBUG ===');
+    console.log('Required roles:', roles);
+    console.log('req.user:', req.user ? {
+      id: req.user.id,
+      role: req.user.role,
+      email: req.user.email
+    } : 'No user');
+    
     if (!req.user) {
+      console.log('No user found in req.user');
       return res.status(401).json({ 
         success: false, 
         message: 'Authentication required' 
       });
     }
 
+    console.log('User role:', req.user.role);
+    console.log('Checking if role is in:', roles);
+    console.log('Result:', roles.includes(req.user.role));
+    
     if (!roles.includes(req.user.role)) {
+      console.log('Access denied - role not in required roles');
       return res.status(403).json({ 
         success: false, 
         message: `Access denied. Required roles: ${roles.join(', ')}` 
       });
     }
 
+    console.log('Role check passed - proceeding');
+    console.log('==================');
     next();
   };
 };
