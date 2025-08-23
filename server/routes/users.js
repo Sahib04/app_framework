@@ -40,7 +40,7 @@ router.get('/peers', authenticateToken, async (req, res) => {
 });
 
 // Create user (admin)
-router.post('/', authenticateToken, authorizeRoles(['admin']), [
+router.post('/', authenticateToken, authorizeRoles('admin'), [
   body('role').isIn(['admin','teacher','student','parent']).withMessage('Invalid role'),
   body('firstName').trim().isLength({ min: 2, max: 50 }),
   body('lastName').trim().isLength({ min: 2, max: 50 }),
@@ -90,7 +90,7 @@ router.post('/', authenticateToken, authorizeRoles(['admin']), [
 });
 
 // Create student with guardian(s) (admin)
-router.post('/students', authenticateToken, authorizeRoles(['admin']), [
+router.post('/students', authenticateToken, authorizeRoles('admin'), [
   body('student.firstName').trim().isLength({ min: 2, max: 50 }),
   body('student.lastName').trim().isLength({ min: 2, max: 50 }),
   body('student.email').isEmail(),
@@ -164,7 +164,7 @@ router.post('/students', authenticateToken, authorizeRoles(['admin']), [
 });
 
 // Get all users (admin only)
-router.get('/', authenticateToken, authorizeRoles(['admin']), async (req, res) => {
+router.get('/', authenticateToken, authorizeRoles('admin'), async (req, res) => {
   try {
     const { role, isActive, search, page = 1, limit = 10 } = req.query;
     
@@ -245,7 +245,7 @@ router.get('/:id', authenticateToken, async (req, res) => {
 });
 
 // Update user (admin only)
-router.put('/:id', authenticateToken, authorizeRoles(['admin']), [
+router.put('/:id', authenticateToken, authorizeRoles('admin'), [
   body('firstName').optional().trim().isLength({ min: 2, max: 50 }),
   body('lastName').optional().trim().isLength({ min: 2, max: 50 }),
   body('email').optional().isEmail(),
@@ -316,7 +316,7 @@ router.put('/change-password', authenticateToken, [
 });
 
 // Delete user (admin only)
-router.delete('/:id', authenticateToken, authorizeRoles(['admin']), async (req, res) => {
+router.delete('/:id', authenticateToken, authorizeRoles('admin'), async (req, res) => {
   try {
     const user = await User.findByPk(req.params.id);
     if (!user) {
@@ -337,7 +337,7 @@ router.delete('/:id', authenticateToken, authorizeRoles(['admin']), async (req, 
 });
 
 // Get students (teacher/admin only)
-router.get('/students/list', authenticateToken, authorizeRoles(['admin', 'teacher']), async (req, res) => {
+router.get('/students/list', authenticateToken, authorizeRoles('admin', 'teacher'), async (req, res) => {
   try {
     const { search, page = 1, limit = 10 } = req.query;
     
@@ -377,7 +377,7 @@ router.get('/students/list', authenticateToken, authorizeRoles(['admin', 'teache
 });
 
 // Get teachers (admin only)
-router.get('/teachers/list', authenticateToken, authorizeRoles(['admin']), async (req, res) => {
+router.get('/teachers/list', authenticateToken, authorizeRoles('admin'), async (req, res) => {
   try {
     const { search, page = 1, limit = 10 } = req.query;
     
@@ -417,7 +417,7 @@ router.get('/teachers/list', authenticateToken, authorizeRoles(['admin']), async
 });
 
 // Get parents (admin/teacher only)
-router.get('/parents/list', authenticateToken, authorizeRoles(['admin', 'teacher']), async (req, res) => {
+router.get('/parents/list', authenticateToken, authorizeRoles('admin', 'teacher'), async (req, res) => {
   try {
     const { search, page = 1, limit = 10 } = req.query;
     
@@ -457,7 +457,7 @@ router.get('/parents/list', authenticateToken, authorizeRoles(['admin', 'teacher
 });
 
 // Bulk operations (admin only)
-router.post('/bulk', authenticateToken, authorizeRoles(['admin']), [
+router.post('/bulk', authenticateToken, authorizeRoles('admin'), [
   body('action').isIn(['activate', 'deactivate', 'delete']),
   body('userIds').isArray().notEmpty(),
 ], async (req, res) => {
@@ -499,7 +499,7 @@ router.post('/bulk', authenticateToken, authorizeRoles(['admin']), [
 });
 
 // Get guardians for a student (admin/teacher)
-router.get('/guardians-of/:student', authenticateToken, authorizeRoles(['admin','teacher']), async (req, res) => {
+router.get('/guardians-of/:student', authenticateToken, authorizeRoles('admin','teacher'), async (req, res) => {
   try {
     const { Op } = require('sequelize');
     const studentParam = req.params.student; // could be UUID or studentId string
