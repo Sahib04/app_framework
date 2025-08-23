@@ -42,17 +42,34 @@ router.get('/peers', authenticateToken, async (req, res) => {
 // Create user (admin)
 router.post('/', authenticateToken, authorizeRoles('admin'), [
   body('role').isIn(['admin','teacher','student','parent']).withMessage('Invalid role'),
-  body('firstName').trim().isLength({ min: 2, max: 50 }),
-  body('lastName').trim().isLength({ min: 2, max: 50 }),
-  body('email').isEmail(),
-  body('password').optional().isLength({ min: 6 }),
+  body('firstName').trim().isLength({ min: 2, max: 50 }).withMessage('First name is required (2-50 characters)'),
+  body('lastName').trim().isLength({ min: 2, max: 50 }).withMessage('Last name is required (2-50 characters)'),
+  body('email').isEmail().withMessage('Valid email is required'),
+  body('password').isLength({ min: 6 }).withMessage('Password is required (minimum 6 characters)'),
+  body('phone').optional().isMobilePhone().withMessage('Valid phone number required'),
+  body('department').optional().isString().withMessage('Department must be a string'),
+  body('specialization').optional().isString().withMessage('Specialization must be a string'),
+  body('studentId').optional().isString().withMessage('Student ID must be a string'),
+  body('grade').optional().isString().withMessage('Grade must be a string'),
+  body('section').optional().isString().withMessage('Section must be a string'),
 ], async (req, res) => {
   try {
     const errors = validationResult(req);
-    if (!errors.isEmpty()) return res.status(400).json({ errors: errors.array() });
+    if (!errors.isEmpty()) {
+      return res.status(400).json({ 
+        success: false,
+        message: 'Validation failed',
+        errors: errors.array() 
+      });
+    }
 
     const existing = await User.findOne({ where: { email: req.body.email } });
-    if (existing) return res.status(400).json({ message: 'Email already exists' });
+    if (existing) {
+      return res.status(400).json({ 
+        success: false,
+        message: 'Email already exists' 
+      });
+    }
 
     const payload = {
       firstName: req.body.firstName,
@@ -62,11 +79,11 @@ router.post('/', authenticateToken, authorizeRoles('admin'), [
       phone: req.body.phone || null,
       isActive: req.body.isActive !== undefined ? !!req.body.isActive : true,
       isEmailVerified: req.body.isEmailVerified !== undefined ? !!req.body.isEmailVerified : true,
-      department: req.body.department,
-      specialization: req.body.specialization,
-      studentId: req.body.studentId,
-      grade: req.body.grade,
-      section: req.body.section,
+      department: req.body.department || null,
+      specialization: req.body.specialization || null,
+      studentId: req.body.studentId || null,
+      grade: req.body.grade || null,
+      section: req.body.section || null,
       enrollmentDate: req.body.enrollmentDate || null,
     };
 
@@ -82,30 +99,58 @@ router.post('/', authenticateToken, authorizeRoles('admin'), [
 
     const created = await User.create(payload);
     const safe = await User.findByPk(created.id, { attributes: { exclude: ['password'] } });
-    res.status(201).json(safe);
+    
+    res.status(201).json({
+      success: true,
+      message: 'User created successfully',
+      user: safe
+    });
   } catch (error) {
     console.error('Error creating user:', error);
-    res.status(500).json({ message: 'Internal server error' });
+    res.status(500).json({ 
+      success: false,
+      message: 'Internal server error' 
+    });
   }
 });
 
 // Create student with guardian(s) (admin)
 router.post('/students', authenticateToken, authorizeRoles('admin'), [
-  body('student.firstName').trim().isLength({ min: 2, max: 50 }),
-  body('student.lastName').trim().isLength({ min: 2, max: 50 }),
-  body('student.email').isEmail(),
-  body('student.grade').optional().isString(),
-  body('student.section').optional().isString(),
+  body('student.firstName').trim().isLength({ min: 2, max: 50 }).withMessage('Student first name is required (2-50 characters)'),
+  body('student.lastName').trim().isLength({ min: 2, max: 50 }).withMessage('Student last name is required (2-50 characters)'),
+  body('student.email').isEmail().withMessage('Valid student email is required'),
+  body('student.password').isLength({ min: 6 }).withMessage('Student password is required (minimum 6 characters)'),
+  body('student.phone').optional().isMobilePhone().withMessage('Valid phone number required'),
+  body('student.studentId').optional().isString().withMessage('Student ID must be a string'),
+  body('student.grade').optional().isString().withMessage('Grade must be a string'),
+  body('student.section').optional().isString().withMessage('Section must be a string'),
   body('guardians').isArray().withMessage('guardians must be array'),
+  body('guardians.*.firstName').optional().isString().withMessage('Guardian first name must be a string'),
+  body('guardians.*.lastName').optional().isString().withMessage('Guardian last name must be a string'),
+  body('guardians.*.email').isEmail().withMessage('Valid guardian email is required'),
+  body('guardians.*.phone').optional().isMobilePhone().withMessage('Valid guardian phone required'),
+  body('guardians.*.relation').optional().isString().withMessage('Guardian relation must be a string'),
+  body('guardians.*.work').optional().isString().withMessage('Guardian work must be a string'),
 ], async (req, res) => {
   const t = await User.sequelize.transaction();
   try {
     const errors = validationResult(req);
-    if (!errors.isEmpty()) return res.status(400).json({ errors: errors.array() });
+    if (!errors.isEmpty()) {
+      return res.status(400).json({ 
+        success: false,
+        message: 'Validation failed',
+        errors: errors.array() 
+      });
+    }
 
     const { student, guardians } = req.body;
     const exists = await User.findOne({ where: { email: student.email } });
-    if (exists) return res.status(400).json({ message: 'Student email already exists' });
+    if (exists) {
+      return res.status(400).json({ 
+        success: false,
+        message: 'Student email already exists' 
+      });
+    }
 
     // Create student
     const salt = await bcrypt.genSalt(10);
@@ -121,7 +166,7 @@ router.post('/students', authenticateToken, authorizeRoles('admin'), [
       enrollmentDate: student.enrollmentDate || null,
       isActive: true,
       isEmailVerified: true,
-      password: await bcrypt.hash(student.password || 'student123', salt),
+      password: await bcrypt.hash(student.password, salt),
     };
     const createdStudent = await User.create(studentPayload, { transaction: t });
     const studentIdValue = createdStudent.studentId || createdStudent.id;
@@ -155,11 +200,19 @@ router.post('/students', authenticateToken, authorizeRoles('admin'), [
 
     await t.commit();
     const safe = await User.findByPk(createdStudent.id, { attributes: { exclude: ['password'] } });
-    res.status(201).json(safe);
+    
+    res.status(201).json({
+      success: true,
+      message: 'Student created successfully with guardians',
+      user: safe
+    });
   } catch (error) {
     await t.rollback();
     console.error('Error creating student with guardians:', error);
-    res.status(500).json({ message: 'Internal server error' });
+    res.status(500).json({ 
+      success: false,
+      message: 'Internal server error' 
+    });
   }
 });
 
@@ -246,72 +299,125 @@ router.get('/:id', authenticateToken, async (req, res) => {
 
 // Update user (admin only)
 router.put('/:id', authenticateToken, authorizeRoles('admin'), [
-  body('firstName').optional().trim().isLength({ min: 2, max: 50 }),
-  body('lastName').optional().trim().isLength({ min: 2, max: 50 }),
-  body('email').optional().isEmail(),
-  body('phone').optional().isMobilePhone(),
-  body('role').optional().isIn(['admin', 'teacher', 'student', 'parent']),
-  body('isActive').optional().isBoolean(),
-  body('isEmailVerified').optional().isBoolean(),
+  body('firstName').optional().trim().isLength({ min: 2, max: 50 }).withMessage('First name must be 2-50 characters'),
+  body('lastName').optional().trim().isLength({ min: 2, max: 50 }).withMessage('Last name must be 2-50 characters'),
+  body('email').optional().isEmail().withMessage('Valid email required'),
+  body('phone').optional().isMobilePhone().withMessage('Valid phone number required'),
+  body('role').optional().isIn(['admin', 'teacher', 'student', 'parent']).withMessage('Invalid role'),
+  body('isActive').optional().isBoolean().withMessage('isActive must be boolean'),
+  body('isEmailVerified').optional().isBoolean().withMessage('isEmailVerified must be boolean'),
+  body('password').optional().isLength({ min: 6 }).withMessage('Password must be at least 6 characters'),
+  body('department').optional().isString().withMessage('Department must be a string'),
+  body('specialization').optional().isString().withMessage('Specialization must be a string'),
+  body('studentId').optional().isString().withMessage('Student ID must be a string'),
+  body('grade').optional().isString().withMessage('Grade must be a string'),
+  body('section').optional().isString().withMessage('Section must be a string'),
 ], async (req, res) => {
   try {
     const errors = validationResult(req);
-    if (!errors.isEmpty()) return res.status(400).json({ errors: errors.array() });
+    if (!errors.isEmpty()) {
+      return res.status(400).json({ 
+        success: false,
+        message: 'Validation failed',
+        errors: errors.array() 
+      });
+    }
 
     const user = await User.findByPk(req.params.id);
-    if (!user) return res.status(404).json({ message: 'User not found' });
+    if (!user) {
+      return res.status(404).json({ 
+        success: false,
+        message: 'User not found' 
+      });
+    }
 
+    // Update allowed fields
     const allowedFields = ['firstName', 'lastName', 'email', 'phone', 'role', 'isActive', 'isEmailVerified', 'department', 'specialization', 'studentId', 'grade', 'section'];
     allowedFields.forEach(field => {
-      if (req.body[field] !== undefined) user[field] = req.body[field];
+      if (req.body[field] !== undefined) {
+        user[field] = req.body[field];
+      }
     });
 
-    if (req.body.password) {
+    // Handle password update separately with proper hashing
+    if (req.body.password && req.body.password.trim() !== '') {
+      if (req.body.password.length < 6) {
+        return res.status(400).json({ 
+          success: false,
+          message: 'Password must be at least 6 characters' 
+        });
+      }
       const salt = await bcrypt.genSalt(10);
       user.password = await bcrypt.hash(req.body.password, salt);
     }
 
     await user.save();
+    
+    // Return updated user without password
     const safe = await User.findByPk(user.id, { attributes: { exclude: ['password'] } });
-    res.json(safe);
+    res.json({
+      success: true,
+      message: 'User updated successfully',
+      user: safe
+    });
   } catch (error) {
     console.error('Error updating user:', error);
-    res.status(500).json({ message: 'Internal server error' });
+    res.status(500).json({ 
+      success: false,
+      message: 'Internal server error' 
+    });
   }
 });
 
 // Change password
 router.put('/change-password', authenticateToken, [
-  body('currentPassword').isLength({ min: 6 }),
-  body('newPassword').isLength({ min: 6 }),
+  body('currentPassword').isLength({ min: 6 }).withMessage('Current password must be at least 6 characters'),
+  body('newPassword').isLength({ min: 6 }).withMessage('New password must be at least 6 characters'),
 ], async (req, res) => {
   try {
     const errors = validationResult(req);
     if (!errors.isEmpty()) {
-      return res.status(400).json({ errors: errors.array() });
+      return res.status(400).json({ 
+        success: false,
+        message: 'Validation failed',
+        errors: errors.array() 
+      });
     }
 
     const { currentPassword, newPassword } = req.body;
     const user = await User.findByPk(req.user.id);
     
     if (!user) {
-      return res.status(404).json({ message: 'User not found' });
+      return res.status(404).json({ 
+        success: false,
+        message: 'User not found' 
+      });
     }
 
     // Verify current password
-    const isPasswordValid = await user.comparePassword(currentPassword);
+    const isPasswordValid = await bcrypt.compare(currentPassword, user.password);
     if (!isPasswordValid) {
-      return res.status(400).json({ message: 'Current password is incorrect' });
+      return res.status(400).json({ 
+        success: false,
+        message: 'Current password is incorrect' 
+      });
     }
 
-    // Update password
-    user.password = newPassword;
+    // Hash and update new password
+    const salt = await bcrypt.genSalt(10);
+    user.password = await bcrypt.hash(newPassword, salt);
     await user.save();
 
-    res.json({ message: 'Password updated successfully' });
+    res.json({ 
+      success: true,
+      message: 'Password updated successfully' 
+    });
   } catch (error) {
     console.error('Error changing password:', error);
-    res.status(500).json({ message: 'Internal server error' });
+    res.status(500).json({ 
+      success: false,
+      message: 'Internal server error' 
+    });
   }
 });
 

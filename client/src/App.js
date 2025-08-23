@@ -96,6 +96,12 @@ function App() {
                 <Route path="/events" element={<RoleRoute roles={['admin', 'teacher', 'student', 'parent']}><Events /></RoleRoute>} />
                 <Route path="/fees" element={<RoleRoute roles={['admin', 'parent']}><Fees /></RoleRoute>} />
                 
+                {/* Teacher Routes */}
+                <Route path="/students" element={<RoleRoute roles={['admin', 'teacher']}><Users /></RoleRoute>} />
+                
+                {/* Student Routes */}
+                <Route path="/teachers" element={<RoleRoute roles={['admin', 'student']}><Users /></RoleRoute>} />
+                
                 {/* Common Routes */}
                 <Route path="/profile" element={<ProtectedRoute><Profile /></ProtectedRoute>} />
                 <Route path="/settings" element={<ProtectedRoute><Settings /></ProtectedRoute>} />

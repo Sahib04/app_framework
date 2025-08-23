@@ -2,11 +2,13 @@ import React, { useEffect, useState } from 'react';
 import { Box, Tabs, Tab, Grid, Card, CardContent, Typography, Avatar, Chip, TextField, InputAdornment, IconButton, Divider, List, ListItem, ListItemAvatar, ListItemText, CardActions, Button, Dialog, DialogTitle, DialogContent, DialogActions } from '@mui/material';
 import { Search as SearchIcon, People as PeopleIcon, School as SchoolIcon, Email as EmailIcon, Phone as PhoneIcon, FamilyRestroom as GuardianIcon, Info as InfoIcon, Add as AddIcon, Edit as EditIcon } from '@mui/icons-material';
 import { useAuth } from '../../contexts/AuthContext';
+import { useLocation } from 'react-router-dom';
 
 const API_BASE = process.env.REACT_APP_API_URL ? `${process.env.REACT_APP_API_URL}/api` : 'http://localhost:5000/api';
 
 const Users = () => {
   const { token, user } = useAuth();
+  const location = useLocation();
   const [tab, setTab] = useState(0);
   const [students, setStudents] = useState([]);
   const [teachers, setTeachers] = useState([]);
@@ -15,6 +17,11 @@ const Users = () => {
   const [loadingStudents, setLoadingStudents] = useState(false);
   const [loadingTeachers, setLoadingTeachers] = useState(false);
   const [error, setError] = useState('');
+
+  // Determine view mode based on route
+  const isStudentsRoute = location.pathname === '/students';
+  const isTeachersRoute = location.pathname === '/teachers';
+  const isUsersRoute = location.pathname === '/users';
 
   // Detail Dialog
   const [detailOpen, setDetailOpen] = useState(false);
@@ -32,6 +39,17 @@ const Users = () => {
   const [editData, setEditData] = useState({});
   const [editGuardians, setEditGuardians] = useState([{ firstName:'', lastName:'', email:'', phone:'', relation:'parent' }]);
   const [saving, setSaving] = useState(false);
+
+  // Set initial tab based on route
+  useEffect(() => {
+    if (isStudentsRoute) {
+      setTab(0); // Students tab
+    } else if (isTeachersRoute) {
+      setTab(1); // Teachers tab
+    } else if (isUsersRoute) {
+      setTab(0); // Default to students tab for admin
+    }
+  }, [location.pathname, isStudentsRoute, isTeachersRoute, isUsersRoute]);
 
   const openCreate = (mode) => {
     setEditMode(mode);
@@ -236,6 +254,9 @@ const Users = () => {
       isAdmin, 
       isTeacher, 
       isStudent, 
+      isStudentsRoute,
+      isTeachersRoute,
+      isUsersRoute,
       user: user ? {
         id: user.id,
         role: user.role,
@@ -245,10 +266,16 @@ const Users = () => {
       } : null 
     });
     if (!token) return;
-    if (isAdmin || isTeacher) loadStudents();
-    if (isAdmin || isStudent) loadTeachers();
+    
+    // Load data based on route and user role
+    if (isStudentsRoute || (isUsersRoute && (isAdmin || isTeacher))) {
+      loadStudents();
+    }
+    if (isTeachersRoute || (isUsersRoute && (isAdmin || isStudent))) {
+      loadTeachers();
+    }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [token, isAdmin, isTeacher, isStudent]);
+  }, [token, isAdmin, isTeacher, isStudent, isStudentsRoute, isTeachersRoute, isUsersRoute]);
 
   const filteredStudents = (students || []).filter(s => (`${s.firstName} ${s.lastName}`.toLowerCase().includes(search.toLowerCase()) || (s.email || '').toLowerCase().includes(search.toLowerCase())));
   const filteredTeachers = (teachers || []).filter(t => (`${t.firstName} ${t.lastName}`.toLowerCase().includes(search.toLowerCase()) || (t.email || '').toLowerCase().includes(search.toLowerCase())));
@@ -292,11 +319,13 @@ const Users = () => {
   return (
     <Box sx={{ p: 3 }}>
       <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 3 }}>
-        <Typography variant="h4">Users</Typography>
+        <Typography variant="h4">
+          {isStudentsRoute ? 'Students' : isTeachersRoute ? 'Teachers' : 'Users'}
+        </Typography>
         <Box sx={{ display:'flex', gap:1, alignItems:'center' }}>
           <TextField
             size="small"
-            placeholder="Search users..."
+            placeholder={`Search ${isStudentsRoute ? 'students' : isTeachersRoute ? 'teachers' : 'users'}...`}
             value={search}
             onChange={(e) => setSearch(e.target.value)}
             InputProps={{ startAdornment: <InputAdornment position="start"><SearchIcon /></InputAdornment> }}
@@ -317,15 +346,16 @@ const Users = () => {
         </Box>
       )}
 
-      {isAdmin && (
+      {/* Show tabs only for admin on /users route */}
+      {isAdmin && isUsersRoute && (
         <Tabs value={tab} onChange={(e, v) => setTab(v)} sx={{ mb: 2 }}>
           <Tab label="Students" icon={<PeopleIcon />} iconPosition="start" />
           <Tab label="Teachers" icon={<SchoolIcon />} iconPosition="start" />
         </Tabs>
       )}
 
-      {/* Students */}
-      {(isAdmin && tab === 0) || isTeacher ? (
+      {/* Students - Show for admin (all tabs), teacher (students route), or students route */}
+      {((isAdmin && (isUsersRoute ? tab === 0 : true)) || isTeacher || isStudentsRoute) ? (
         <Box>
           {loadingStudents ? (
             <Box sx={{ display: 'flex', justifyContent: 'center', p: 3 }}>
@@ -384,8 +414,8 @@ const Users = () => {
         </Box>
       ) : null}
 
-      {/* Teachers */}
-      {(isAdmin && tab === 1) || isStudent ? (
+      {/* Teachers - Show for admin (all tabs), student (teachers route), or teachers route */}
+      {((isAdmin && (isUsersRoute ? tab === 1 : true)) || isStudent || isTeachersRoute) ? (
         <Box>
           {loadingTeachers ? (
             <Box sx={{ display: 'flex', justifyContent: 'center', p: 3 }}>

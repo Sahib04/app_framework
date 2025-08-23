@@ -110,31 +110,31 @@ const TeacherDashboard = () => {
   const featureCards = [
     {
       title: 'My Classes',
-      description: 'View and manage your assigned classes and schedules',
+      description: 'Manage your classes, attendance, and student progress',
       icon: <Class />,
-      color: '#4CAF50',
+      color: '#2196F3',
       path: '/classes',
       stats: `${stats.totalClasses} active classes`
     },
     {
       title: 'Students',
-      description: 'View student profiles, performance, and contact information',
+      description: 'View and manage your students, grades, and attendance',
       icon: <People />,
-      color: '#2196F3',
+      color: '#4CAF50',
       path: '/students',
       stats: `${stats.totalStudents} students`
     },
     {
       title: 'Assignments',
-      description: 'Create, manage, and grade student assignments',
+      description: 'Create and grade assignments, track submissions',
       icon: <Assignment />,
       color: '#FF9800',
       path: '/assignments',
-      stats: 'Active assignments'
+      stats: 'Manage assignments'
     },
     {
       title: 'Grades',
-      description: 'Record and manage student grades and assessments',
+      description: 'Record and manage student grades and progress',
       icon: <Grade />,
       color: '#9C27B0',
       path: '/grades',
@@ -146,31 +146,15 @@ const TeacherDashboard = () => {
       icon: <Schedule />,
       color: '#607D8B',
       path: '/attendance',
-      stats: `${stats.attendanceRate}% avg attendance`
+      stats: `${stats.attendanceRate}% average`
     },
     {
-      title: 'Communication',
+      title: 'Messages',
       description: 'Send messages and announcements to students and parents',
       icon: <Message />,
-      color: '#00BCD4',
-      path: '/messages',
-      stats: 'Active conversations'
-    },
-    {
-      title: 'Events',
-      description: 'View and participate in school events and activities',
-      icon: <Event />,
-      color: '#8BC34A',
-      path: '/events',
-      stats: 'Upcoming events'
-    },
-    {
-      title: 'Reports',
-      description: 'Generate academic and performance reports',
-      icon: <Assessment />,
       color: '#E91E63',
-      path: '/reports',
-      stats: 'Analytics & insights'
+      path: '/messages',
+      stats: 'Communication hub'
     }
   ];
 

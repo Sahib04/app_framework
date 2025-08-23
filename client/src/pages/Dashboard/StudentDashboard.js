@@ -98,6 +98,14 @@ const StudentDashboard = () => {
       stats: `${stats.totalCourses} enrolled courses`
     },
     {
+      title: 'Teachers',
+      description: 'View teacher profiles and contact information',
+      icon: <Person />,
+      color: '#2196F3',
+      path: '/teachers',
+      stats: 'Teacher directory'
+    },
+    {
       title: 'Assignments',
       description: 'View and submit assignments, track deadlines',
       icon: <Assignment />,
@@ -107,51 +115,27 @@ const StudentDashboard = () => {
     },
     {
       title: 'Grades',
-      description: 'Check your grades and academic performance',
+      description: 'Check your grades, progress, and performance',
       icon: <Grade />,
       color: '#9C27B0',
       path: '/grades',
       stats: `${stats.averageGrade}% average`
     },
     {
-      title: 'Schedule',
-      description: 'View your class schedule and upcoming sessions',
+      title: 'Attendance',
+      description: 'View your attendance records and history',
       icon: <Schedule />,
-      color: '#2196F3',
-      path: '/schedule',
-      stats: 'Daily schedule'
+      color: '#607D8B',
+      path: '/attendance',
+      stats: `${stats.attendanceRate}% attendance`
     },
     {
-      title: 'Communication',
+      title: 'Messages',
       description: 'Send messages to teachers and classmates',
       icon: <Message />,
-      color: '#00BCD4',
-      path: '/messages',
-      stats: 'Active conversations'
-    },
-    {
-      title: 'Events',
-      description: 'View school events and activities',
-      icon: <Event />,
-      color: '#8BC34A',
-      path: '/events',
-      stats: 'Upcoming events'
-    },
-    {
-      title: 'Resources',
-      description: 'Access course materials and study resources',
-      icon: <School />,
-      color: '#607D8B',
-      path: '/resources',
-      stats: 'Learning materials'
-    },
-    {
-      title: 'Video Classes',
-      description: 'Join online classes and virtual sessions',
-      icon: <Class />,
       color: '#E91E63',
-      path: '/video-classes',
-      stats: 'Online learning'
+      path: '/messages',
+      stats: 'Communication hub'
     }
   ];
 
