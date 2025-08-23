@@ -115,7 +115,7 @@ export const AuthProvider = ({ children }) => {
           dispatch({
             type: AUTH_ACTIONS.LOGIN_SUCCESS,
             payload: {
-              user: response.data.user,
+              user: response.data.data.user,
               token: token
             }
           });
@@ -140,7 +140,7 @@ export const AuthProvider = ({ children }) => {
       const response = await authAPI.login({ email, password });
       
       // Set token in API headers
-      authAPI.setAuthToken(response.data.token);
+      authAPI.setAuthToken(response.data.data.token);
 
       dispatch({
         type: AUTH_ACTIONS.LOGIN_SUCCESS,
@@ -169,11 +169,14 @@ export const AuthProvider = ({ children }) => {
       const response = await authAPI.register(userData);
       
       // Set token in API headers
-      authAPI.setAuthToken(response.data.token);
+      authAPI.setAuthToken(response.data.data.token);
 
       dispatch({
         type: AUTH_ACTIONS.REGISTER_SUCCESS,
-        payload: response.data
+        payload: {
+          user: response.data.data.user,
+          token: response.data.data.token
+        }
       });
 
       return { success: true };

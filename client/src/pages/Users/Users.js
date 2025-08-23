@@ -157,6 +157,7 @@ const Users = () => {
         return;
       }
       console.log('Loading students from:', url);
+      console.log('Authorization header:', `Bearer ${token.substring(0, 20)}...`);
       const res = await fetch(url, { headers: { Authorization: `Bearer ${token}` } });
       console.log('Students response status:', res.status);
       
@@ -200,6 +201,7 @@ const Users = () => {
         return;
       }
       console.log('Loading teachers from:', url);
+      console.log('Authorization header:', `Bearer ${token.substring(0, 20)}...`);
       const res = await fetch(url, { headers: { Authorization: `Bearer ${token}` } });
       console.log('Teachers response status:', res.status);
       
@@ -229,7 +231,19 @@ const Users = () => {
   };
 
   useEffect(() => { 
-    console.log('Users useEffect triggered:', { token, isAdmin, isTeacher, isStudent, user });
+    console.log('Users useEffect triggered:', { 
+      token: token ? `${token.substring(0, 20)}...` : null, 
+      isAdmin, 
+      isTeacher, 
+      isStudent, 
+      user: user ? {
+        id: user.id,
+        role: user.role,
+        email: user.email,
+        firstName: user.firstName,
+        lastName: user.lastName
+      } : null 
+    });
     if (!token) return;
     if (isAdmin || isTeacher) loadStudents();
     if (isAdmin || isStudent) loadTeachers();
