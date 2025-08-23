@@ -12,6 +12,9 @@ const Users = () => {
   const [teachers, setTeachers] = useState([]);
   const [search, setSearch] = useState('');
   const [guardiansByStudent, setGuardiansByStudent] = useState({});
+  const [loadingStudents, setLoadingStudents] = useState(false);
+  const [loadingTeachers, setLoadingTeachers] = useState(false);
+  const [error, setError] = useState('');
 
   // Detail Dialog
   const [detailOpen, setDetailOpen] = useState(false);
@@ -140,6 +143,8 @@ const Users = () => {
 
   const loadStudents = async () => {
     try {
+      setLoadingStudents(true);
+      setError('');
       let url = '';
       if (isAdmin) {
         url = `${API_BASE}/users/students/list`;
@@ -154,19 +159,36 @@ const Users = () => {
       console.log('Loading students from:', url);
       const res = await fetch(url, { headers: { Authorization: `Bearer ${token}` } });
       console.log('Students response status:', res.status);
+      
+      if (!res.ok) {
+        throw new Error(`HTTP ${res.status}: ${res.statusText}`);
+      }
+      
       const data = await res.json();
       console.log('Students response data:', data);
-      const list = isAdmin ? (data.students || data || []) : (Array.isArray(data) ? data : []);
+      
+      let list = [];
+      if (isAdmin) {
+        list = Array.isArray(data.students) ? data.students : (Array.isArray(data) ? data : []);
+      } else {
+        list = Array.isArray(data) ? data : [];
+      }
+      
       console.log('Setting students list:', list);
       setStudents(list);
     } catch (e) {
       console.error('Failed to load students', e);
+      setError(`Failed to load students: ${e.message}`);
       setStudents([]);
+    } finally {
+      setLoadingStudents(false);
     }
   };
   
   const loadTeachers = async () => {
     try {
+      setLoadingTeachers(true);
+      setError('');
       let url = '';
       if (isAdmin) {
         url = `${API_BASE}/users/teachers/list`;
@@ -180,14 +202,29 @@ const Users = () => {
       console.log('Loading teachers from:', url);
       const res = await fetch(url, { headers: { Authorization: `Bearer ${token}` } });
       console.log('Teachers response status:', res.status);
+      
+      if (!res.ok) {
+        throw new Error(`HTTP ${res.status}: ${res.statusText}`);
+      }
+      
       const data = await res.json();
       console.log('Teachers response data:', data);
-      const list = isAdmin ? (data.teachers || data || []) : (Array.isArray(data) ? data : []);
+      
+      let list = [];
+      if (isAdmin) {
+        list = Array.isArray(data.teachers) ? data.teachers : (Array.isArray(data) ? data : []);
+      } else {
+        list = Array.isArray(data) ? data : [];
+      }
+      
       console.log('Setting teachers list:', list);
       setTeachers(list);
     } catch (e) {
       console.error('Failed to load teachers', e);
+      setError(`Failed to load teachers: ${e.message}`);
       setTeachers([]);
+    } finally {
+      setLoadingTeachers(false);
     }
   };
 
@@ -199,8 +236,8 @@ const Users = () => {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [token, isAdmin, isTeacher, isStudent]);
 
-  const filteredStudents = students.filter(s => (`${s.firstName} ${s.lastName}`.toLowerCase().includes(search.toLowerCase()) || (s.email || '').toLowerCase().includes(search.toLowerCase())));
-  const filteredTeachers = teachers.filter(t => (`${t.firstName} ${t.lastName}`.toLowerCase().includes(search.toLowerCase()) || (t.email || '').toLowerCase().includes(search.toLowerCase())));
+  const filteredStudents = (students || []).filter(s => (`${s.firstName} ${s.lastName}`.toLowerCase().includes(search.toLowerCase()) || (s.email || '').toLowerCase().includes(search.toLowerCase())));
+  const filteredTeachers = (teachers || []).filter(t => (`${t.firstName} ${t.lastName}`.toLowerCase().includes(search.toLowerCase()) || (t.email || '').toLowerCase().includes(search.toLowerCase())));
 
   const loadGuardians = async (student) => {
     try {
@@ -259,6 +296,13 @@ const Users = () => {
         </Box>
       </Box>
 
+      {/* Error Display */}
+      {error && (
+        <Box sx={{ mb: 2, p: 2, bgcolor: 'error.light', color: 'error.contrastText', borderRadius: 1 }}>
+          <Typography variant="body2">{error}</Typography>
+        </Box>
+      )}
+
       {isAdmin && (
         <Tabs value={tab} onChange={(e, v) => setTab(v)} sx={{ mb: 2 }}>
           <Tab label="Students" icon={<PeopleIcon />} iconPosition="start" />
@@ -268,90 +312,118 @@ const Users = () => {
 
       {/* Students */}
       {(isAdmin && tab === 0) || isTeacher ? (
-        <Grid container spacing={2}>
-          {filteredStudents.map(st => (
-            <Grid item xs={12} md={6} lg={4} key={st.id}>
-              <Card sx={{ boxShadow: 3 }}>
-                <CardContent>
-                  <Box sx={{ display: 'flex', alignItems: 'center', mb: 1 }}>
-                    <Avatar src={st.profilePicture} sx={{ mr: 2 }}>{st.firstName?.[0]}{st.lastName?.[0]}</Avatar>
-                    <Box>
-                      <Typography variant="h6">{st.firstName} {st.lastName}</Typography>
-                      <Typography variant="body2" color="text.secondary">{st.email}</Typography>
-                    </Box>
-                  </Box>
-                  <Divider sx={{ my: 1 }} />
-                  <Box sx={{ display: 'flex', gap: 1, flexWrap: 'wrap' }}>
-                    {st.studentId && <Chip label={`ID: ${st.studentId}`} size="small" />}
-                    {st.grade && <Chip label={`Grade: ${st.grade}`} size="small" />}
-                    {st.section && <Chip label={`Section: ${st.section}`} size="small" />}
-                  </Box>
-                  <Box sx={{ mt: 1 }}>
-                    <Typography variant="subtitle2" gutterBottom>Contact</Typography>
-                    <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-                      <EmailIcon fontSize="small" />
-                      <Typography variant="body2">{st.email || 'N/A'}</Typography>
-                    </Box>
-                    <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-                      <PhoneIcon fontSize="small" />
-                      <Typography variant="body2">{st.phone || 'N/A'}</Typography>
-                    </Box>
-                  </Box>
+        <Box>
+          {loadingStudents ? (
+            <Box sx={{ display: 'flex', justifyContent: 'center', p: 3 }}>
+              <Typography>Loading students...</Typography>
+            </Box>
+          ) : filteredStudents.length === 0 ? (
+            <Box sx={{ textAlign: 'center', p: 3 }}>
+              <Typography color="text.secondary">
+                {isAdmin ? 'No students found. Create your first student!' : 'No students available.'}
+              </Typography>
+            </Box>
+          ) : (
+            <Grid container spacing={2}>
+              {filteredStudents.map(st => (
+                <Grid item xs={12} md={6} lg={4} key={st.id}>
+                  <Card sx={{ boxShadow: 3 }}>
+                    <CardContent>
+                      <Box sx={{ display: 'flex', alignItems: 'center', mb: 1 }}>
+                        <Avatar src={st.profilePicture} sx={{ mr: 2 }}>{st.firstName?.[0]}{st.lastName?.[0]}</Avatar>
+                        <Box>
+                          <Typography variant="h6">{st.firstName} {st.lastName}</Typography>
+                          <Typography variant="body2" color="text.secondary">{st.email}</Typography>
+                        </Box>
+                      </Box>
+                      <Divider sx={{ my: 1 }} />
+                      <Box sx={{ display: 'flex', gap: 1, flexWrap: 'wrap' }}>
+                        {st.studentId && <Chip label={`ID: ${st.studentId}`} size="small" />}
+                        {st.grade && <Chip label={`Grade: ${st.grade}`} size="small" />}
+                        {st.section && <Chip label={`Section: ${st.section}`} size="small" />}
+                      </Box>
+                      <Box sx={{ mt: 1 }}>
+                        <Typography variant="subtitle2" gutterBottom>Contact</Typography>
+                        <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                          <EmailIcon fontSize="small" />
+                          <Typography variant="body2">{st.email || 'N/A'}</Typography>
+                        </Box>
+                        <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                          <PhoneIcon fontSize="small" />
+                          <Typography variant="body2">{st.phone || 'N/A'}</Typography>
+                        </Box>
+                      </Box>
 
-                  {/* Guardians quick view button */}
-                  <Box sx={{ mt: 2 }}>
-                    <Button size="small" variant="outlined" onClick={() => openDetails(st, 'student')} startIcon={<InfoIcon />}>View Details</Button>
-                    {isAdmin && (
-                      <Button size="small" sx={{ ml:1 }} variant="contained" startIcon={<EditIcon />} onClick={() => openEdit('student', st)}>Edit</Button>
-                    )}
-                  </Box>
-                </CardContent>
-              </Card>
+                      {/* Guardians quick view button */}
+                      <Box sx={{ mt: 2 }}>
+                        <Button size="small" variant="outlined" onClick={() => openDetails(st, 'student')} startIcon={<InfoIcon />}>View Details</Button>
+                        {isAdmin && (
+                          <Button size="small" sx={{ ml:1 }} variant="contained" startIcon={<EditIcon />} onClick={() => openEdit('student', st)}>Edit</Button>
+                        )}
+                      </Box>
+                    </CardContent>
+                  </Card>
+                </Grid>
+              ))}
             </Grid>
-          ))}
-        </Grid>
+          )}
+        </Box>
       ) : null}
 
       {/* Teachers */}
       {(isAdmin && tab === 1) || isStudent ? (
-        <Grid container spacing={2}>
-          {filteredTeachers.map(tc => (
-            <Grid item xs={12} md={6} lg={4} key={tc.id}>
-              <Card sx={{ boxShadow: 3 }}>
-                <CardContent>
-                  <Box sx={{ display: 'flex', alignItems: 'center', mb: 1 }}>
-                    <Avatar src={tc.profilePicture} sx={{ mr: 2 }}>{tc.firstName?.[0]}{tc.lastName?.[0]}</Avatar>
-                    <Box>
-                      <Typography variant="h6">{tc.firstName} {tc.lastName}</Typography>
-                      <Typography variant="body2" color="text.secondary">{tc.email}</Typography>
-                    </Box>
-                  </Box>
-                  <Divider sx={{ my: 1 }} />
-                  <Box sx={{ display: 'flex', gap: 1, flexWrap: 'wrap' }}>
-                    <Chip label={`Role: ${tc.role}`} size="small" />
-                  </Box>
-                  <Box sx={{ mt: 1 }}>
-                    <Typography variant="subtitle2" gutterBottom>Contact</Typography>
-                    <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-                      <EmailIcon fontSize="small" />
-                      <Typography variant="body2">{tc.email || 'N/A'}</Typography>
-                    </Box>
-                    <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-                      <PhoneIcon fontSize="small" />
-                      <Typography variant="body2">{tc.phone || 'N/A'}</Typography>
-                    </Box>
-                  </Box>
-                  <Box sx={{ mt: 2 }}>
-                    <Button size="small" variant="outlined" onClick={() => openDetails(tc, 'teacher')} startIcon={<InfoIcon />}>View Details</Button>
-                    {isAdmin && (
-                      <Button size="small" sx={{ ml:1 }} variant="contained" startIcon={<EditIcon />} onClick={() => openEdit('teacher', tc)}>Edit</Button>
-                    )}
-                  </Box>
-                </CardContent>
-              </Card>
+        <Box>
+          {loadingTeachers ? (
+            <Box sx={{ display: 'flex', justifyContent: 'center', p: 3 }}>
+              <Typography>Loading teachers...</Typography>
+            </Box>
+          ) : filteredTeachers.length === 0 ? (
+            <Box sx={{ textAlign: 'center', p: 3 }}>
+              <Typography color="text.secondary">
+                {isAdmin ? 'No teachers found. Create your first teacher!' : 'No teachers available.'}
+              </Typography>
+            </Box>
+          ) : (
+            <Grid container spacing={2}>
+              {filteredTeachers.map(tc => (
+                <Grid item xs={12} md={6} lg={4} key={tc.id}>
+                  <Card sx={{ boxShadow: 3 }}>
+                    <CardContent>
+                      <Box sx={{ display: 'flex', alignItems: 'center', mb: 1 }}>
+                        <Avatar src={tc.profilePicture} sx={{ mr: 2 }}>{tc.firstName?.[0]}{tc.lastName?.[0]}</Avatar>
+                        <Box>
+                          <Typography variant="h6">{tc.firstName} {tc.lastName}</Typography>
+                          <Typography variant="body2" color="text.secondary">{tc.email}</Typography>
+                        </Box>
+                      </Box>
+                      <Divider sx={{ my: 1 }} />
+                      <Box sx={{ display: 'flex', gap: 1, flexWrap: 'wrap' }}>
+                        <Chip label={`Role: ${tc.role}`} size="small" />
+                      </Box>
+                      <Box sx={{ mt: 1 }}>
+                        <Typography variant="subtitle2" gutterBottom>Contact</Typography>
+                        <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                          <EmailIcon fontSize="small" />
+                          <Typography variant="body2">{tc.email || 'N/A'}</Typography>
+                        </Box>
+                        <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                          <PhoneIcon fontSize="small" />
+                          <Typography variant="body2">{tc.phone || 'N/A'}</Typography>
+                        </Box>
+                      </Box>
+                      <Box sx={{ mt: 2 }}>
+                        <Button size="small" variant="outlined" onClick={() => openDetails(tc, 'teacher')} startIcon={<InfoIcon />}>View Details</Button>
+                        {isAdmin && (
+                          <Button size="small" sx={{ ml:1 }} variant="contained" startIcon={<EditIcon />} onClick={() => openEdit('teacher', tc)}>Edit</Button>
+                        )}
+                      </Box>
+                    </CardContent>
+                  </Card>
+                </Grid>
+              ))}
             </Grid>
-          ))}
-        </Grid>
+          )}
+        </Box>
       ) : null}
 
       {/* Details Dialog (read-only) */}
