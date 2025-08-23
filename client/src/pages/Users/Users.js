@@ -47,30 +47,92 @@ const Users = () => {
   const saveUser = async () => {
     try {
       setSaving(true);
+      
+      // Validate required fields
+      if (!editData.firstName || !editData.lastName || !editData.email || !editData.password) {
+        alert('Please fill in all required fields (First Name, Last Name, Email, Password)');
+        return;
+      }
+
       if (editMode === 'student' && !editData.id) {
         // create student with guardians
-        const payload = { student: { firstName: editData.firstName, lastName: editData.lastName, email: editData.email, phone: editData.phone, grade: editData.grade, section: editData.section, studentId: editData.studentId, password: editData.password }, guardians: editGuardians.filter(g=>g.email) };
-        const res = await fetch(`${API_BASE}/users/students`, { method:'POST', headers: { 'Content-Type':'application/json', Authorization:`Bearer ${token}` }, body: JSON.stringify(payload) });
-        if (!res.ok) throw new Error('Create failed');
+        const payload = { 
+          student: { 
+            firstName: editData.firstName, 
+            lastName: editData.lastName, 
+            email: editData.email, 
+            phone: editData.phone, 
+            grade: editData.grade, 
+            section: editData.section, 
+            studentId: editData.studentId, 
+            password: editData.password 
+          }, 
+          guardians: editGuardians.filter(g => g.email && g.firstName && g.lastName) 
+        };
+        console.log('Creating student with payload:', payload);
+        const res = await fetch(`${API_BASE}/users/students`, { 
+          method: 'POST', 
+          headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` }, 
+          body: JSON.stringify(payload) 
+        });
+        if (!res.ok) {
+          const errorData = await res.json();
+          throw new Error(errorData.message || 'Create failed');
+        }
+        alert('Student created successfully!');
         await loadStudents();
       } else if (editMode === 'student' && editData.id) {
-        const res = await fetch(`${API_BASE}/users/${editData.id}`, { method:'PUT', headers: { 'Content-Type':'application/json', Authorization:`Bearer ${token}` }, body: JSON.stringify(editData) });
-        if (!res.ok) throw new Error('Update failed');
+        const res = await fetch(`${API_BASE}/users/${editData.id}`, { 
+          method: 'PUT', 
+          headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` }, 
+          body: JSON.stringify(editData) 
+        });
+        if (!res.ok) {
+          const errorData = await res.json();
+          throw new Error(errorData.message || 'Update failed');
+        }
+        alert('Student updated successfully!');
         await loadStudents();
       } else if (editMode === 'teacher' && !editData.id) {
-        const payload = { role:'teacher', firstName: editData.firstName, lastName: editData.lastName, email: editData.email, phone: editData.phone, department: editData.department, specialization: editData.specialization, password: editData.password };
-        const res = await fetch(`${API_BASE}/users`, { method:'POST', headers: { 'Content-Type':'application/json', Authorization:`Bearer ${token}` }, body: JSON.stringify(payload) });
-        if (!res.ok) throw new Error('Create failed');
+        const payload = { 
+          role: 'teacher', 
+          firstName: editData.firstName, 
+          lastName: editData.lastName, 
+          email: editData.email, 
+          phone: editData.phone, 
+          department: editData.department, 
+          specialization: editData.specialization, 
+          password: editData.password 
+        };
+        console.log('Creating teacher with payload:', payload);
+        const res = await fetch(`${API_BASE}/users`, { 
+          method: 'POST', 
+          headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` }, 
+          body: JSON.stringify(payload) 
+        });
+        if (!res.ok) {
+          const errorData = await res.json();
+          throw new Error(errorData.message || 'Create failed');
+        }
+        alert('Teacher created successfully!');
         await loadTeachers();
       } else if (editMode === 'teacher' && editData.id) {
-        const res = await fetch(`${API_BASE}/users/${editData.id}`, { method:'PUT', headers: { 'Content-Type':'application/json', Authorization:`Bearer ${token}` }, body: JSON.stringify(editData) });
-        if (!res.ok) throw new Error('Update failed');
+        const res = await fetch(`${API_BASE}/users/${editData.id}`, { 
+          method: 'PUT', 
+          headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` }, 
+          body: JSON.stringify(editData) 
+        });
+        if (!res.ok) {
+          const errorData = await res.json();
+          throw new Error(errorData.message || 'Update failed');
+        }
+        alert('Teacher updated successfully!');
         await loadTeachers();
       }
       closeEdit();
     } catch (e) {
-      // eslint-disable-next-line no-console
       console.error('Save failed', e);
+      alert(`Error: ${e.message}`);
     } finally {
       setSaving(false);
     }
@@ -80,7 +142,7 @@ const Users = () => {
     try {
       let url = '';
       if (isAdmin) {
-        url = `${API_BASE}/users?role=student&limit=100`;
+        url = `${API_BASE}/users/students/list`;
       } else if (isTeacher) {
         // Teacher sees students via peers
         url = `${API_BASE}/users/peers`;
@@ -89,21 +151,25 @@ const Users = () => {
         setStudents([]);
         return;
       }
+      console.log('Loading students from:', url);
       const res = await fetch(url, { headers: { Authorization: `Bearer ${token}` } });
+      console.log('Students response status:', res.status);
       const data = await res.json();
-      const list = isAdmin ? (data.users || []) : (Array.isArray(data) ? data : []);
+      console.log('Students response data:', data);
+      const list = isAdmin ? (data.students || data || []) : (Array.isArray(data) ? data : []);
+      console.log('Setting students list:', list);
       setStudents(list);
     } catch (e) {
-      // eslint-disable-next-line no-console
       console.error('Failed to load students', e);
       setStudents([]);
     }
   };
+  
   const loadTeachers = async () => {
     try {
       let url = '';
       if (isAdmin) {
-        url = `${API_BASE}/users?role=teacher&limit=100`;
+        url = `${API_BASE}/users/teachers/list`;
       } else if (isStudent) {
         // Student sees teachers via peers
         url = `${API_BASE}/users/peers`;
@@ -111,18 +177,22 @@ const Users = () => {
         setTeachers([]);
         return;
       }
+      console.log('Loading teachers from:', url);
       const res = await fetch(url, { headers: { Authorization: `Bearer ${token}` } });
+      console.log('Teachers response status:', res.status);
       const data = await res.json();
-      const list = isAdmin ? (data.users || []) : (Array.isArray(data) ? data : []);
+      console.log('Teachers response data:', data);
+      const list = isAdmin ? (data.teachers || data || []) : (Array.isArray(data) ? data : []);
+      console.log('Setting teachers list:', list);
       setTeachers(list);
     } catch (e) {
-      // eslint-disable-next-line no-console
       console.error('Failed to load teachers', e);
       setTeachers([]);
     }
   };
 
   useEffect(() => { 
+    console.log('Users useEffect triggered:', { token, isAdmin, isTeacher, isStudent, user });
     if (!token) return;
     if (isAdmin || isTeacher) loadStudents();
     if (isAdmin || isStudent) loadTeachers();
