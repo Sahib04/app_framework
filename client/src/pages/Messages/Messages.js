@@ -322,10 +322,10 @@ const Messages = () => {
     <Box sx={{ p: 3 }}>
       {/* Header */}
       <Box sx={{ mb: 4, display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-        <Box>
-          <Typography variant="h4" component="h1" gutterBottom>
-            Messages
-          </Typography>
+    <Box>
+      <Typography variant="h4" component="h1" gutterBottom>
+        Messages
+      </Typography>
           <Typography variant="body1" color="text.secondary">
             Communicate with teachers and students
           </Typography>
@@ -543,7 +543,7 @@ const Messages = () => {
         <DialogContent>
           <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
             Start a new conversation or send a message.
-          </Typography>
+        </Typography>
           {/* TODO: implement user search and select teacher/student */}
         </DialogContent>
         <DialogActions>

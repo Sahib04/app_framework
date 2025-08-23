@@ -21,8 +21,7 @@ import ResetPassword from './pages/Auth/ResetPassword';
 import VerifyEmail from './pages/Auth/VerifyEmail';
 import Dashboard from './pages/Dashboard/Dashboard';
 import Courses from './pages/Courses/Courses';
-import Students from './pages/Students/Students';
-import Teachers from './pages/Teachers/Teachers';
+import Users from './pages/Users/Users';
 import Attendance from './pages/Attendance/Attendance';
 import Grades from './pages/Grades/Grades';
 import Assignments from './pages/Assignments/Assignments';
@@ -87,7 +86,7 @@ function App() {
                 <Route path="/dashboard" element={<ProtectedRoute><Dashboard /></ProtectedRoute>} />
                 
                 {/* Admin Routes */}
-                <Route path="/users" element={<RoleRoute roles={['admin']}><Students /></RoleRoute>} />
+                <Route path="/users" element={<RoleRoute roles={['admin']}><Users /></RoleRoute>} />
                 <Route path="/courses" element={<RoleRoute roles={['admin', 'teacher', 'student']}><Courses /></RoleRoute>} />
                 <Route path="/classes" element={<RoleRoute roles={['admin', 'teacher', 'student']}><Attendance /></RoleRoute>} />
                 <Route path="/attendance" element={<RoleRoute roles={['admin', 'teacher', 'student', 'parent']}><Attendance /></RoleRoute>} />
