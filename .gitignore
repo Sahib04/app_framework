@@ -5,8 +5,6 @@ yarn-debug.log*
 yarn-error.log*
 
 # Environment variables
-read_db.py
-db_exports
 .env
 .env.local
 .env.development.local
@@ -14,18 +12,13 @@ db_exports
 .env.production.local
 
 # Build outputs
-/build
-/dist
-/client/build
-/client/dist
+client/build/
+client/dist/
+server/dist/
 
 # Logs
 logs
 *.log
-npm-debug.log*
-yarn-debug.log*
-yarn-error.log*
-lerna-debug.log*
 
 # Runtime data
 pids
@@ -35,40 +28,15 @@ pids
 
 # Coverage directory used by tools like istanbul
 coverage/
-*.lcov
 
 # nyc test coverage
 .nyc_output
 
-# Grunt intermediate storage
-.grunt
-
-# Bower dependency directory
-bower_components
-
-# node-waf configuration
-.lock-wscript
-
-# Compiled binary addons
-build/Release
-
 # Dependency directories
 jspm_packages/
 
-# TypeScript cache
-*.tsbuildinfo
-
 # Optional npm cache directory
 .npm
-
-# Optional eslint cache
-.eslintcache
-
-# Microbundle cache
-.rpt2_cache/
-.rts2_cache_cjs/
-.rts2_cache_es/
-.rts2_cache_umd/
 
 # Optional REPL history
 .node_repl_history
@@ -80,37 +48,44 @@ jspm_packages/
 .yarn-integrity
 
 # dotenv environment variables file
-.env.test
+.env
 
-# parcel-bundler cache
+# parcel-bundler cache (https://parceljs.org/)
 .cache
 .parcel-cache
 
-# Next.js build output
+# next.js build output
 .next
 
-# Nuxt.js build / generate output
+# nuxt.js build output
 .nuxt
-dist
 
-# Gatsby files
-.cache/
+# vuepress build output
+.vuepress/dist
 
+# Serverless directories
+.serverless
 
-# Storybook build outputs
-.out
-.storybook-out
+# FuseBox cache
+.fusebox/
 
-# Temporary folders
-tmp/
-temp/
+# DynamoDB Local files
+.dynamodb/
 
-# Editor directories and files
-.vscode/
-.idea/
-*.swp
-*.swo
-*~
+# TernJS port file
+.tern-port
+
+# Stores VSCode versions used for testing VSCode extensions
+.vscode-test
+
+# Uploads
+uploads/
+!uploads/.gitkeep
+
+# Database
+*.db
+*.sqlite
+*.sqlite3
 
 # OS generated files
 .DS_Store
@@ -121,51 +96,23 @@ temp/
 ehthumbs.db
 Thumbs.db
 
-# Uploads and user content
-uploads/
-public/uploads/
+# IDE files
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
 
-# Database files
-*.db
-*.sqlite
-*.sqlite3
+# Temporary files
+*.tmp
+*.temp
 
 # Backup files
-backups/
+*.bak
 *.backup
-
-# SSL certificates
-*.pem
-*.key
-*.crt
-
-# Docker
-.dockerignore
-docker-compose.override.yml
-
-# Testing
-coverage/
-.nyc_output/
-
-# Production
-/build
-
-# Misc
-*.tgz
-*.tar.gz
 
 # Local development
 .env.local
 .env.development.local
 .env.test.local
 .env.production.local
-
-# IDE
-.vscode/
-.idea/
-*.swp
-*.swo
-
-# OS
-.DS_Store
-Thumbs.db

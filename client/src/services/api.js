@@ -1,160 +1,310 @@
 import axios from 'axios';
 
-const API_URL = process.env.REACT_APP_API_URL || 'http://localhost:5000/api';
+const API_BASE_URL = process.env.REACT_APP_API_URL || 'http://localhost:5000';
 
-// Create axios instance
-const api = axios.create({
-  baseURL: API_URL,
-  headers: {
-    'Content-Type': 'application/json',
-  },
-});
-
-// Request interceptor to add auth token
-api.interceptors.request.use(
-  (config) => {
-    const token = localStorage.getItem('token');
-    if (token) {
-      config.headers.Authorization = `Bearer ${token}`;
-    }
-    return config;
-  },
-  (error) => {
-    return Promise.reject(error);
+class ApiService {
+  constructor() {
+    this.baseURL = API_BASE_URL;
   }
-);
 
-// Response interceptor to handle errors
-api.interceptors.response.use(
-  (response) => response,
-  (error) => {
-    if (error.response?.status === 401) {
-      localStorage.removeItem('token');
-      window.location.href = '/login';
-    }
-    return Promise.reject(error);
+  // Helper method to get auth token
+  getAuthToken() {
+    return localStorage.getItem('token');
   }
-);
 
-// Auth API
-export const authAPI = {
-  login: (credentials) => api.post('/auth/login', credentials),
-  register: (userData) => api.post('/auth/register', userData),
-  forgotPassword: (email) => api.post('/auth/forgot-password', { email }),
-  resetPassword: (token, password) => api.post('/auth/reset-password', { token, password }),
-  verifyEmail: (token) => api.post('/auth/verify-email', { token }),
-  changePassword: (passwords) => api.post('/auth/change-password', passwords),
-  refreshToken: () => api.post('/auth/refresh-token'),
-  logout: () => api.post('/auth/logout'),
-  getCurrentUser: () => api.get('/auth/me'),
-  setAuthToken: (token) => {
-    localStorage.setItem('token', token);
-    api.defaults.headers.common['Authorization'] = `Bearer ${token}`;
-  },
-  removeAuthToken: () => {
-    localStorage.removeItem('token');
-    delete api.defaults.headers.common['Authorization'];
-  },
-};
+  // Helper method to get auth headers
+  getAuthHeaders() {
+    const token = this.getAuthToken();
+    return {
+      'Content-Type': 'application/json',
+      ...(token && { Authorization: `Bearer ${token}` })
+    };
+  }
 
-// Users API
-export const usersAPI = {
-  getProfile: () => api.get('/users/profile'),
-  updateProfile: (data) => api.put('/users/profile', data),
-  getUsers: (params) => api.get('/users', { params }),
-  getUser: (id) => api.get(`/users/${id}`),
-  updateUser: (id, data) => api.put(`/users/${id}`, data),
-  deleteUser: (id) => api.delete(`/users/${id}`),
-  getStudents: (params) => api.get('/users/students', { params }),
-  getTeachers: (params) => api.get('/users/teachers', { params }),
-  getParents: (params) => api.get('/users/parents', { params }),
-};
+  // Generic request method
+  async request(endpoint, options = {}) {
+    const url = `${this.baseURL}${endpoint}`;
+    const config = {
+      headers: this.getAuthHeaders(),
+      ...options
+    };
 
-// Courses API
-export const coursesAPI = {
-  getCourses: (params) => api.get('/courses', { params }),
-  getCourse: (id) => api.get(`/courses/${id}`),
-  createCourse: (data) => api.post('/courses', data),
-  updateCourse: (id, data) => api.put(`/courses/${id}`, data),
-  deleteCourse: (id) => api.delete(`/courses/${id}`),
-  enrollCourse: (id) => api.post(`/courses/${id}/enroll`),
-  unenrollCourse: (id) => api.post(`/courses/${id}/unenroll`),
-};
+    try {
+      const response = await fetch(url, config);
+      
+      // Handle non-JSON responses
+      const contentType = response.headers.get('content-type');
+      if (!contentType || !contentType.includes('application/json')) {
+        throw new Error('Response is not JSON');
+      }
 
-// Classes API
-export const classesAPI = {
-  getClasses: (params) => api.get('/classes', { params }),
-  getClass: (id) => api.get(`/classes/${id}`),
-  createClass: (data) => api.post('/classes', data),
-  updateClass: (id, data) => api.put(`/classes/${id}`, data),
-  deleteClass: (id) => api.delete(`/classes/${id}`),
-  getClassesByCourse: (courseId) => api.get(`/classes/course/${courseId}`),
-  getClassesByTeacher: (teacherId) => api.get(`/classes/teacher/${teacherId}`),
-};
+      const data = await response.json();
 
-// Attendance API
-export const attendanceAPI = {
-  getAttendance: (params) => api.get('/attendance', { params }),
-  getAttendanceByClass: (classId) => api.get(`/attendance/class/${classId}`),
-  getAttendanceByStudent: (studentId) => api.get(`/attendance/student/${studentId}`),
-  markAttendance: (data) => api.post('/attendance', data),
-  updateAttendance: (id, data) => api.put(`/attendance/${id}`, data),
-  deleteAttendance: (id) => api.delete(`/attendance/${id}`),
-};
+      if (!response.ok) {
+        throw new Error(data.message || `HTTP error! status: ${response.status}`);
+      }
 
-// Grades API
-export const gradesAPI = {
-  getGrades: (params) => api.get('/grades', { params }),
-  getGrade: (id) => api.get(`/grades/${id}`),
-  createGrade: (data) => api.post('/grades', data),
-  updateGrade: (id, data) => api.put(`/grades/${id}`, data),
-  deleteGrade: (id) => api.delete(`/grades/${id}`),
-  getGradesByStudent: (studentId) => api.get(`/grades/student/${studentId}`),
-  getGradesByCourse: (courseId) => api.get(`/grades/course/${courseId}`),
-};
+      return data;
+    } catch (error) {
+      console.error('API request failed:', error);
+      throw error;
+    }
+  }
 
-// Assignments API
-export const assignmentsAPI = {
-  getAssignments: (params) => api.get('/assignments', { params }),
-  getAssignment: (id) => api.get(`/assignments/${id}`),
-  createAssignment: (data) => api.post('/assignments', data),
-  updateAssignment: (id, data) => api.put(`/assignments/${id}`, data),
-  deleteAssignment: (id) => api.delete(`/assignments/${id}`),
-  submitAssignment: (id, data) => api.post(`/assignments/${id}/submit`, data),
-  gradeAssignment: (id, data) => api.post(`/assignments/${id}/grade`, data),
-};
+  // Auth endpoints
+  async login(credentials) {
+    return this.request('/api/auth/login', {
+      method: 'POST',
+      body: JSON.stringify(credentials)
+    });
+  }
 
-// Messages API
-export const messagesAPI = {
-  getMessages: (params) => api.get('/messages', { params }),
-  getMessage: (id) => api.get(`/messages/${id}`),
-  sendMessage: (data) => api.post('/messages', data),
-  updateMessage: (id, data) => api.put(`/messages/${id}`, data),
-  deleteMessage: (id) => api.delete(`/messages/${id}`),
-  markAsRead: (id) => api.put(`/messages/${id}/read`),
-  getConversations: () => api.get('/messages/conversations'),
-};
+  async register(userData) {
+    return this.request('/api/auth/register', {
+      method: 'POST',
+      body: JSON.stringify(userData)
+    });
+  }
 
-// Events API
-export const eventsAPI = {
-  getEvents: (params) => api.get('/events', { params }),
-  getEvent: (id) => api.get(`/events/${id}`),
-  createEvent: (data) => api.post('/events', data),
-  updateEvent: (id, data) => api.put(`/events/${id}`, data),
-  deleteEvent: (id) => api.delete(`/events/${id}`),
-  getEventsByDate: (date) => api.get(`/events/date/${date}`),
-};
+  async forgotPassword(email) {
+    return this.request('/api/auth/forgot-password', {
+      method: 'POST',
+      body: JSON.stringify({ email })
+    });
+  }
 
-// Fees API
-export const feesAPI = {
-  getFees: (params) => api.get('/fees', { params }),
-  getFee: (id) => api.get(`/fees/${id}`),
-  createFee: (data) => api.post('/fees', data),
-  updateFee: (id, data) => api.put(`/fees/${id}`, data),
-  deleteFee: (id) => api.delete(`/fees/${id}`),
-  payFee: (id, data) => api.post(`/fees/${id}/pay`, data),
-  getFeesByStudent: (studentId) => api.get(`/fees/student/${studentId}`),
-  generateInvoice: (id) => api.get(`/fees/${id}/invoice`),
-};
+  async resetPassword(token, password) {
+    return this.request('/api/auth/reset-password', {
+      method: 'POST',
+      body: JSON.stringify({ token, password })
+    });
+  }
 
-export default api;
+  async verifyEmail(token) {
+    return this.request('/api/auth/verify-email', {
+      method: 'POST',
+      body: JSON.stringify({ token })
+    });
+  }
+
+  // User endpoints
+  async getCurrentUser() {
+    return this.request('/api/users/me');
+  }
+
+  async updateProfile(userData) {
+    return this.request('/api/users/profile', {
+      method: 'PUT',
+      body: JSON.stringify(userData)
+    });
+  }
+
+  async getAllUsers() {
+    return this.request('/api/users');
+  }
+
+  // Course endpoints
+  async getCourses() {
+    return this.request('/api/courses');
+  }
+
+  async createCourse(courseData) {
+    return this.request('/api/courses', {
+      method: 'POST',
+      body: JSON.stringify(courseData)
+    });
+  }
+
+  async updateCourse(id, courseData) {
+    return this.request(`/api/courses/${id}`, {
+      method: 'PUT',
+      body: JSON.stringify(courseData)
+    });
+  }
+
+  async deleteCourse(id) {
+    return this.request(`/api/courses/${id}`, {
+      method: 'DELETE'
+    });
+  }
+
+  // Class endpoints
+  async getClasses() {
+    return this.request('/api/classes');
+  }
+
+  async createClass(classData) {
+    return this.request('/api/classes', {
+      method: 'POST',
+      body: JSON.stringify(classData)
+    });
+  }
+
+  async updateClass(id, classData) {
+    return this.request(`/api/classes/${id}`, {
+      method: 'PUT',
+      body: JSON.stringify(classData)
+    });
+  }
+
+  async deleteClass(id) {
+    return this.request(`/api/classes/${id}`, {
+      method: 'DELETE'
+    });
+  }
+
+  // Assignment endpoints
+  async getAssignments() {
+    return this.request('/api/assignments');
+  }
+
+  async createAssignment(assignmentData) {
+    return this.request('/api/assignments', {
+      method: 'POST',
+      body: JSON.stringify(assignmentData)
+    });
+  }
+
+  async updateAssignment(id, assignmentData) {
+    return this.request(`/api/assignments/${id}`, {
+      method: 'PUT',
+      body: JSON.stringify(assignmentData)
+    });
+  }
+
+  async deleteAssignment(id) {
+    return this.request(`/api/assignments/${id}`, {
+      method: 'DELETE'
+    });
+  }
+
+  // Attendance endpoints
+  async getAttendance() {
+    return this.request('/api/attendance');
+  }
+
+  async markAttendance(attendanceData) {
+    return this.request('/api/attendance', {
+      method: 'POST',
+      body: JSON.stringify(attendanceData)
+    });
+  }
+
+  // Grade endpoints
+  async getGrades() {
+    return this.request('/api/grades');
+  }
+
+  async submitGrade(gradeData) {
+    return this.request('/api/grades', {
+      method: 'POST',
+      body: JSON.stringify(gradeData)
+    });
+  }
+
+  // Event endpoints
+  async getEvents() {
+    return this.request('/api/events');
+  }
+
+  async createEvent(eventData) {
+    return this.request('/api/events', {
+      method: 'POST',
+      body: JSON.stringify(eventData)
+    });
+  }
+
+  async updateEvent(id, eventData) {
+    return this.request(`/api/events/${id}`, {
+      method: 'PUT',
+      body: JSON.stringify(eventData)
+    });
+  }
+
+  async deleteEvent(id) {
+    return this.request(`/api/events/${id}`, {
+      method: 'DELETE'
+    });
+  }
+
+  // Fee endpoints
+  async getFees() {
+    return this.request('/api/fees');
+  }
+
+  async createFee(feeData) {
+    return this.request('/api/fees', {
+      method: 'POST',
+      body: JSON.stringify(feeData)
+    });
+  }
+
+  async updateFee(id, feeData) {
+    return this.request(`/api/fees/${id}`, {
+      method: 'PUT',
+      body: JSON.stringify(feeData)
+    });
+  }
+
+  async deleteFee(id) {
+    return this.request(`/api/fees/${id}`, {
+      method: 'DELETE'
+    });
+  }
+
+  // Message endpoints
+  async getMessages() {
+    return this.request('/api/messages');
+  }
+
+  async sendMessage(messageData) {
+    return this.request('/api/messages', {
+      method: 'POST',
+      body: JSON.stringify(messageData)
+    });
+  }
+
+  // Test endpoints
+  async getTests() {
+    return this.request('/api/tests');
+  }
+
+  async createTest(testData) {
+    return this.request('/api/tests', {
+      method: 'POST',
+      body: JSON.stringify(testData)
+    });
+  }
+
+  async updateTest(id, testData) {
+    return this.request(`/api/tests/${id}`, {
+      method: 'PUT',
+      body: JSON.stringify(testData)
+    });
+  }
+
+  async deleteTest(id) {
+    return this.request(`/api/tests/${id}`, {
+      method: 'DELETE'
+    });
+  }
+
+  async addTestComment(testId, commentData) {
+    return this.request(`/api/tests/${testId}/comments`, {
+      method: 'POST',
+      body: JSON.stringify(commentData)
+    });
+  }
+
+  async getTestComments(testId) {
+    return this.request(`/api/tests/${testId}/comments`);
+  }
+
+  async submitTest(testId) {
+    return this.request(`/api/tests/${testId}/submit`, {
+      method: 'POST'
+    });
+  }
+}
+
+export default new ApiService();

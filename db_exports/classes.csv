@@ -1,0 +1,1 @@
+id,courseId,teacherId,title,description,date,startTime,endTime,room,type,materials,objectives,status,attendanceId,notes,isRecurring,recurringPattern,maxCapacity,currentEnrollment,isOnline,meetingLink,meetingPassword,recordingUrl,resources,assignments,announcements,createdAt,updatedAt

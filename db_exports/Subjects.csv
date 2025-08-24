@@ -1,0 +1,5 @@
+id,name,code,description,department,gradeLevel,isActive,color,icon,createdAt,updatedAt
+2b439317-352c-4f18-8977-8c5429c39752,Mathematics,MATH,"Study of numbers, quantities, shapes, and patterns",Mathematics,9-12,True,#EF4444,calculator,2025-08-17 04:10:28.305571,2025-08-17 04:10:28.305571
+84475cb6-ef55-46de-a725-0f87461f189f,Science,SCI,Study of the natural world and its phenomena,Science,9-12,True,#10B981,flask,2025-08-17 04:10:28.305571,2025-08-17 04:10:28.305571
+ad6be60e-29c8-418f-b13f-ae31305bd62d,English,ENG,"Study of language, literature, and communication",English,9-12,True,#3B82F6,book-open,2025-08-17 04:10:28.305571,2025-08-17 04:10:28.305571
+08111595-8a35-477d-ab17-f3150e5ca401,History,HIST,Study of past events and their significance,Social Studies,9-12,True,#8B5CF6,clock,2025-08-17 04:10:28.305571,2025-08-17 04:10:28.305571
