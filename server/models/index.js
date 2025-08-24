@@ -5,6 +5,9 @@ const Class = require('./Class');
 const Conversation = require('./Conversation');
 const Message = require('./Message');
 const Attachment = require('./Attachment');
+const Test = require('./Test');
+const TestComment = require('./TestComment');
+const TestSubmission = require('./TestSubmission');
 
 // Associations
 Conversation.belongsTo(User, { as: 'teacher', foreignKey: 'teacherId' });
@@ -18,6 +21,17 @@ Message.belongsTo(User, { as: 'receiver', foreignKey: 'receiverId' });
 Message.hasOne(Attachment, { foreignKey: 'messageId', as: 'attachment' });
 Attachment.belongsTo(Message, { foreignKey: 'messageId' });
 
+// Test associations
+Test.belongsTo(User, { as: 'teacher', foreignKey: 'teacherId' });
+Test.hasMany(TestComment, { as: 'comments', foreignKey: 'testId' });
+Test.hasMany(TestSubmission, { as: 'submissions', foreignKey: 'testId' });
+
+TestComment.belongsTo(Test, { as: 'test', foreignKey: 'testId' });
+TestComment.belongsTo(User, { as: 'user', foreignKey: 'userId' });
+
+TestSubmission.belongsTo(Test, { as: 'test', foreignKey: 'testId' });
+TestSubmission.belongsTo(User, { as: 'student', foreignKey: 'studentId' });
+
 module.exports = {
 	sequelize,
 	User,
@@ -26,4 +40,7 @@ module.exports = {
 	Conversation,
 	Message,
 	Attachment,
+	Test,
+	TestComment,
+	TestSubmission,
 };

@@ -62,7 +62,8 @@ import {
   Message,
   Event,
   Payment,
-  AccountCircle
+  AccountCircle,
+  Assignment as AssignmentIcon
 } from '@mui/icons-material';
 import { useAuth } from '../../contexts/AuthContext';
 import { useNavigate } from 'react-router-dom';
@@ -126,6 +127,14 @@ const AdminDashboard = () => {
       color: '#9C27B0',
       path: '/assignments',
       stats: 'Active assignments'
+    },
+    {
+      title: 'Tests & Exams',
+      description: 'Monitor test creation, submissions, and student performance',
+      icon: <AssignmentIcon />,
+      color: '#FF5722',
+      path: '/tests',
+      stats: 'Test management'
     },
     {
       title: 'Grades & Assessment',
@@ -466,7 +475,7 @@ const AdminDashboard = () => {
               </Box>
               <LinearProgress 
                 variant="determinate" 
-                value={systemHealth.storageUsage} 
+                value={systemHealth.storageUsage}
                 sx={{ height: 6, borderRadius: 3 }}
               />
             </Box>

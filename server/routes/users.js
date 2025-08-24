@@ -46,12 +46,30 @@ router.post('/', authenticateToken, authorizeRoles('admin'), [
   body('lastName').trim().isLength({ min: 2, max: 50 }).withMessage('Last name is required (2-50 characters)'),
   body('email').isEmail().withMessage('Valid email is required'),
   body('password').isLength({ min: 6 }).withMessage('Password is required (minimum 6 characters)'),
-  body('phone').optional().isMobilePhone().withMessage('Valid phone number required'),
-  body('department').optional().isString().withMessage('Department must be a string'),
-  body('specialization').optional().isString().withMessage('Specialization must be a string'),
-  body('studentId').optional().isString().withMessage('Student ID must be a string'),
-  body('grade').optional().isString().withMessage('Grade must be a string'),
-  body('section').optional().isString().withMessage('Section must be a string'),
+  body('phone').optional().trim().custom(value => {
+    if (value === '' || value === null || value === undefined) return true;
+    return /^\+?[\d\s\-\(\)]+$/.test(value);
+  }).withMessage('Valid phone number required'),
+  body('department').optional().trim().custom(value => {
+    if (value === '' || value === null || value === undefined) return true;
+    return typeof value === 'string';
+  }).withMessage('Department must be a string'),
+  body('specialization').optional().trim().custom(value => {
+    if (value === '' || value === null || value === undefined) return true;
+    return typeof value === 'string';
+  }).withMessage('Specialization must be a string'),
+  body('studentId').optional().trim().custom(value => {
+    if (value === '' || value === null || value === undefined) return true;
+    return typeof value === 'string';
+  }).withMessage('Student ID must be a string'),
+  body('grade').optional().trim().custom(value => {
+    if (value === '' || value === null || value === undefined) return true;
+    return typeof value === 'string';
+  }).withMessage('Grade must be a string'),
+  body('section').optional().trim().custom(value => {
+    if (value === '' || value === null || value === undefined) return true;
+    return typeof value === 'string';
+  }).withMessage('Section must be a string'),
 ], async (req, res) => {
   try {
     const errors = validationResult(req);
@@ -120,17 +138,44 @@ router.post('/students', authenticateToken, authorizeRoles('admin'), [
   body('student.lastName').trim().isLength({ min: 2, max: 50 }).withMessage('Student last name is required (2-50 characters)'),
   body('student.email').isEmail().withMessage('Valid student email is required'),
   body('student.password').isLength({ min: 6 }).withMessage('Student password is required (minimum 6 characters)'),
-  body('student.phone').optional().isMobilePhone().withMessage('Valid phone number required'),
-  body('student.studentId').optional().isString().withMessage('Student ID must be a string'),
-  body('student.grade').optional().isString().withMessage('Grade must be a string'),
-  body('student.section').optional().isString().withMessage('Section must be a string'),
+  body('student.phone').optional().trim().custom(value => {
+    if (value === '' || value === null || value === undefined) return true;
+    return /^\+?[\d\s\-\(\)]+$/.test(value);
+  }).withMessage('Valid guardian phone required'),
+  body('student.studentId').optional().trim().custom(value => {
+    if (value === '' || value === null || value === undefined) return true;
+    return typeof value === 'string';
+  }).withMessage('Student ID must be a string'),
+  body('student.grade').optional().trim().custom(value => {
+    if (value === '' || value === null || value === undefined) return true;
+    return typeof value === 'string';
+  }).withMessage('Grade must be a string'),
+  body('student.section').optional().trim().custom(value => {
+    if (value === '' || value === null || value === undefined) return true;
+    return typeof value === 'string';
+  }).withMessage('Section must be a string'),
   body('guardians').isArray().withMessage('guardians must be array'),
-  body('guardians.*.firstName').optional().isString().withMessage('Guardian first name must be a string'),
-  body('guardians.*.lastName').optional().isString().withMessage('Guardian last name must be a string'),
+  body('guardians.*.firstName').optional().trim().custom(value => {
+    if (value === '' || value === null || value === undefined) return true;
+    return typeof value === 'string';
+  }).withMessage('Guardian first name must be a string'),
+  body('guardians.*.lastName').optional().trim().custom(value => {
+    if (value === '' || value === null || value === undefined) return true;
+    return typeof value === 'string';
+  }).withMessage('Guardian last name must be a string'),
   body('guardians.*.email').isEmail().withMessage('Valid guardian email is required'),
-  body('guardians.*.phone').optional().isMobilePhone().withMessage('Valid guardian phone required'),
-  body('guardians.*.relation').optional().isString().withMessage('Guardian relation must be a string'),
-  body('guardians.*.work').optional().isString().withMessage('Guardian work must be a string'),
+  body('guardians.*.phone').optional().trim().custom(value => {
+    if (value === '' || value === null || value === undefined) return true;
+    return /^\+?[\d\s\-\(\)]+$/.test(value);
+  }).withMessage('Valid guardian phone required'),
+  body('guardians.*.relation').optional().trim().custom(value => {
+    if (value === '' || value === null || value === undefined) return true;
+    return typeof value === 'string';
+  }).withMessage('Guardian relation must be a string'),
+  body('guardians.*.work').optional().trim().custom(value => {
+    if (value === '' || value === null || value === undefined) return true;
+    return typeof value === 'string';
+  }).withMessage('Guardian work must be a string'),
 ], async (req, res) => {
   const t = await User.sequelize.transaction();
   try {
@@ -302,16 +347,34 @@ router.put('/:id', authenticateToken, authorizeRoles('admin'), [
   body('firstName').optional().trim().isLength({ min: 2, max: 50 }).withMessage('First name must be 2-50 characters'),
   body('lastName').optional().trim().isLength({ min: 2, max: 50 }).withMessage('Last name must be 2-50 characters'),
   body('email').optional().isEmail().withMessage('Valid email required'),
-  body('phone').optional().isMobilePhone().withMessage('Valid phone number required'),
+  body('phone').optional().trim().custom(value => {
+    if (value === '' || value === null || value === undefined) return true;
+    return /^\+?[\d\s\-\(\)]+$/.test(value);
+  }).withMessage('Valid phone number required'),
   body('role').optional().isIn(['admin', 'teacher', 'student', 'parent']).withMessage('Invalid role'),
   body('isActive').optional().isBoolean().withMessage('isActive must be boolean'),
   body('isEmailVerified').optional().isBoolean().withMessage('isEmailVerified must be boolean'),
   body('password').optional().isLength({ min: 6 }).withMessage('Password must be at least 6 characters'),
-  body('department').optional().isString().withMessage('Department must be a string'),
-  body('specialization').optional().isString().withMessage('Specialization must be a string'),
-  body('studentId').optional().isString().withMessage('Student ID must be a string'),
-  body('grade').optional().isString().withMessage('Grade must be a string'),
-  body('section').optional().isString().withMessage('Section must be a string'),
+  body('department').optional().trim().custom(value => {
+    if (value === '' || value === null || value === undefined) return true;
+    return typeof value === 'string';
+  }).withMessage('Department must be a string'),
+  body('specialization').optional().trim().custom(value => {
+    if (value === '' || value === null || value === undefined) return true;
+    return typeof value === 'string';
+  }).withMessage('Specialization must be a string'),
+  body('studentId').optional().trim().custom(value => {
+    if (value === '' || value === null || value === undefined) return true;
+    return typeof value === 'string';
+  }).withMessage('Student ID must be a string'),
+  body('grade').optional().trim().custom(value => {
+    if (value === '' || value === null || value === undefined) return true;
+    return typeof value === 'string';
+  }).withMessage('Grade must be a string'),
+  body('section').optional().trim().custom(value => {
+    if (value === '' || value === null || value === undefined) return true;
+    return typeof value === 'string';
+  }).withMessage('Section must be a string'),
 ], async (req, res) => {
   try {
     const errors = validationResult(req);

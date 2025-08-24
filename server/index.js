@@ -65,6 +65,7 @@ const feeRoutes = require('./routes/fees');
 const messageRoutes = require('./routes/messages');
 const assignmentRoutes = require('./routes/assignments');
 const eventRoutes = require('./routes/events');
+const testRoutes = require('./routes/tests');
 
 // Import middleware
 const { authenticateToken } = require('./middleware/auth');
@@ -120,6 +121,7 @@ app.use('/api/fees', authenticateToken, feeRoutes);
 app.use('/api/messages', authenticateToken, messageRoutes);
 app.use('/api/assignments', authenticateToken, assignmentRoutes);
 app.use('/api/events', authenticateToken, eventRoutes);
+app.use('/api/tests', authenticateToken, testRoutes);
 
 // Health check endpoint
 app.get('/api/health', (req, res) => {

@@ -22,6 +22,7 @@ import VerifyEmail from './pages/Auth/VerifyEmail';
 import Dashboard from './pages/Dashboard/Dashboard';
 import Courses from './pages/Courses/Courses';
 import Users from './pages/Users/Users';
+import Tests from './pages/Tests/Tests';
 import Attendance from './pages/Attendance/Attendance';
 import Grades from './pages/Grades/Grades';
 import Assignments from './pages/Assignments/Assignments';
@@ -92,6 +93,7 @@ function App() {
                 <Route path="/attendance" element={<RoleRoute roles={['admin', 'teacher', 'student', 'parent']}><Attendance /></RoleRoute>} />
                 <Route path="/grades" element={<RoleRoute roles={['admin', 'teacher', 'student', 'parent']}><Grades /></RoleRoute>} />
                 <Route path="/assignments" element={<RoleRoute roles={['admin', 'teacher', 'student']}><Assignments /></RoleRoute>} />
+                <Route path="/tests" element={<RoleRoute roles={['admin', 'teacher', 'student']}><Tests /></RoleRoute>} />
                 <Route path="/messages" element={<RoleRoute roles={['admin', 'teacher', 'student', 'parent']}><Messages /></RoleRoute>} />
                 <Route path="/events" element={<RoleRoute roles={['admin', 'teacher', 'student', 'parent']}><Events /></RoleRoute>} />
                 <Route path="/fees" element={<RoleRoute roles={['admin', 'parent']}><Fees /></RoleRoute>} />

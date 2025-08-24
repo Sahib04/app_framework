@@ -35,7 +35,8 @@ import {
   Message,
   Event,
   Assessment,
-  School
+  School,
+  AssignmentIcon
 } from '@mui/icons-material';
 import { useAuth } from '../../contexts/AuthContext';
 import { useNavigate } from 'react-router-dom';
@@ -131,6 +132,14 @@ const TeacherDashboard = () => {
       color: '#FF9800',
       path: '/assignments',
       stats: 'Manage assignments'
+    },
+    {
+      title: 'Tests',
+      description: 'Create and manage tests, track student performance',
+      icon: <AssignmentIcon />,
+      color: '#FF5722',
+      path: '/tests',
+      stats: 'Test management'
     },
     {
       title: 'Grades',
@@ -291,7 +300,7 @@ const TeacherDashboard = () => {
         <Typography variant="h5" gutterBottom sx={{ fontWeight: 'bold', mb: 3 }}>
           Quick Access to Features
         </Typography>
-        <Grid container spacing={3}>
+      <Grid container spacing={3}>
           {featureCards.map((feature, index) => (
             <Grid item xs={12} sm={6} md={4} lg={3} key={index}>
               <FeatureCard {...feature} />
@@ -302,7 +311,7 @@ const TeacherDashboard = () => {
 
       {/* Students List with Guardians */}
       <Box sx={{ mb: 4 }}>
-        <Paper sx={{ p: 3 }}>
+          <Paper sx={{ p: 3 }}>
           <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 2 }}>
             <Typography variant="h6" sx={{ fontWeight: 'bold' }}>Students</Typography>
             <TextField
@@ -322,7 +331,7 @@ const TeacherDashboard = () => {
                     secondaryAction={
                       <Button size="small" variant="outlined" onClick={() => toggleGuardians(s)}>
                         {expandedStudentId === s.id ? 'Hide Guardians' : 'View Guardians'}
-                      </Button>
+              </Button>
                     }
                   >
                     <ListItemIcon>
@@ -353,7 +362,7 @@ const TeacherDashboard = () => {
             </List>
           )}
         </Paper>
-      </Box>
+            </Box>
 
       {/* Current Classes */}
       <Grid container spacing={3}>
@@ -366,7 +375,7 @@ const TeacherDashboard = () => {
               {classes.map((cls) => (
                 <Grid item xs={12} sm={6} md={4} key={cls.id}>
                   <Card sx={{ height: '100%' }}>
-                    <CardContent>
+                <CardContent>
                       <Typography variant="h6" component="h2" gutterBottom>
                         {cls.name}
                       </Typography>
@@ -376,24 +385,24 @@ const TeacherDashboard = () => {
                       <Box sx={{ display: 'flex', justifyContent: 'space-between', mb: 1 }}>
                         <Typography variant="body2">Students</Typography>
                         <Typography variant="body2">{cls.students}</Typography>
-                      </Box>
+                    </Box>
                       <Box sx={{ display: 'flex', justifyContent: 'space-between', mb: 1 }}>
                         <Typography variant="body2">Grade</Typography>
                         <Chip label={cls.grade} size="small" color="primary" />
-                      </Box>
+                    </Box>
                       <Box sx={{ display: 'flex', justifyContent: 'space-between', mb: 1 }}>
                         <Typography variant="body2">Attendance</Typography>
                         <Typography variant="body2">{cls.attendance}%</Typography>
-                      </Box>
-                    </CardContent>
+                  </Box>
+                </CardContent>
                     <CardActions>
                       <Button size="small" variant="outlined" fullWidth>
                         View Details
                       </Button>
                     </CardActions>
-                  </Card>
+              </Card>
                 </Grid>
-              ))}
+            ))}
             </Grid>
           </Paper>
         </Grid>

@@ -103,6 +103,7 @@ const Users = () => {
         alert('Student created successfully!');
         await loadStudents();
       } else if (editMode === 'student' && editData.id) {
+        console.log('Updating student with data:', editData);
         const res = await fetch(`${API_BASE}/users/${editData.id}`, { 
           method: 'PUT', 
           headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` }, 
@@ -110,6 +111,7 @@ const Users = () => {
         });
         if (!res.ok) {
           const errorData = await res.json();
+          console.error('Update failed with error data:', errorData);
           throw new Error(errorData.message || 'Update failed');
         }
         alert('Student updated successfully!');
@@ -145,6 +147,7 @@ const Users = () => {
         });
         if (!res.ok) {
           const errorData = await res.json();
+          console.error('Teacher update failed with error data:', errorData);
           throw new Error(errorData.message || 'Update failed');
         }
         alert('Teacher updated successfully!');

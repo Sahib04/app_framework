@@ -70,7 +70,7 @@ router.get('/:conversationId', authenticateToken, async (req, res) => {
 		res.json(items.reverse());
 	} catch (e) {
 		console.error(e); res.status(500).json({ message: 'Internal server error' });
-	}
+  }
 });
 
 // Send message
@@ -79,8 +79,8 @@ router.post('/', authenticateToken, [
 	body('body').optional().isString(),
 	body('contentType').optional().isIn(['text','image','emoji','video','audio','file','document','link']),
 ], async (req, res) => {
-	try {
-		const errors = validationResult(req);
+  try {
+    const errors = validationResult(req);
 		if (!errors.isEmpty()) return res.status(400).json({ errors: errors.array() });
 
 		const sender = await User.findByPk(req.user.id);
@@ -221,7 +221,7 @@ router.post('/upload', authenticateToken, upload.single('file'), async (req, res
         res.status(201).json(msg);
     } catch (e) {
         console.error(e); res.status(500).json({ message: 'Internal server error' });
-    }
+  }
 });
 
 module.exports = router;

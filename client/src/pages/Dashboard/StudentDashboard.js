@@ -34,7 +34,8 @@ import {
   Assessment,
   School,
   TrendingUp,
-  Notifications
+  Notifications,
+  AssignmentIcon
 } from '@mui/icons-material';
 import { useAuth } from '../../contexts/AuthContext';
 import { useNavigate } from 'react-router-dom';
@@ -112,6 +113,14 @@ const StudentDashboard = () => {
       color: '#FF9800',
       path: '/assignments',
       stats: `${stats.assignmentsDue} due soon`
+    },
+    {
+      title: 'Tests',
+      description: 'Take tests and view your performance',
+      icon: <AssignmentIcon />,
+      color: '#FF5722',
+      path: '/tests',
+      stats: 'Test center'
     },
     {
       title: 'Grades',
@@ -328,8 +337,8 @@ const StudentDashboard = () => {
               ))}
             </List>
           )}
-        </Paper>
-      </Box>
+          </Paper>
+            </Box>
 
       <Grid container spacing={3}>
         {/* Current Courses */}
