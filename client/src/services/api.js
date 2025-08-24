@@ -1,4 +1,4 @@
-import axios from 'axios';
+// Removed axios import as we're using fetch API
 
 const API_BASE_URL = process.env.REACT_APP_API_URL || 'http://localhost:5000';
 
@@ -307,4 +307,16 @@ class ApiService {
   }
 }
 
-export default new ApiService();
+const apiService = new ApiService();
+
+// Export individual API methods for backward compatibility
+export const authAPI = {
+  login: apiService.login.bind(apiService),
+  register: apiService.register.bind(apiService),
+  forgotPassword: apiService.forgotPassword.bind(apiService),
+  resetPassword: apiService.resetPassword.bind(apiService),
+  verifyEmail: apiService.verifyEmail.bind(apiService)
+};
+
+// eslint-disable-next-line import/no-anonymous-default-export
+export default apiService;

@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import {
   Box,
   Grid,
@@ -10,48 +10,25 @@ import {
   Chip,
   Tabs,
   Tab,
-  List,
-  ListItem,
-  ListItemText,
-  ListItemSecondaryAction,
-  Divider,
   Alert,
   Dialog,
   DialogTitle,
   DialogContent,
   DialogActions,
   TextField,
-  FormControl,
-  InputLabel,
-  Select,
-  MenuItem,
-  ListItemAvatar,
-  Avatar,
-  IconButton,
-  Table,
-  TableBody,
-  TableCell,
-  TableContainer,
-  TableHead,
-  TableRow,
-  LinearProgress
+  IconButton
 } from '@mui/material';
 import {
-  Assignment as AssignmentIcon,
   Schedule as ScheduleIcon,
   Grade as GradeIcon,
-  Comment as CommentIcon,
-  Visibility as VisibilityIcon,
-  TrendingUp as TrendingUpIcon,
-  People as PeopleIcon,
-  Assessment as AssessmentIcon
+  PlayArrow as PlayIcon
 } from '@mui/icons-material';
 import { useAuth } from '../../contexts/AuthContext';
 
 const API_BASE = process.env.REACT_APP_API_URL ? `${process.env.REACT_APP_API_URL}/api` : 'http://localhost:5000/api';
 
 const AdminTestView = () => {
-  const { user, token } = useAuth();
+  const { token } = useAuth();
   const [tests, setTests] = useState([]);
   const [loading, setLoading] = useState(false);
   const [tab, setTab] = useState(0);
@@ -65,9 +42,9 @@ const AdminTestView = () => {
 
   useEffect(() => {
     loadTests();
-  }, []);
+  }, [loadTests]);
 
-  const loadTests = async () => {
+  const loadTests = useCallback(async () => {
     try {
       setLoading(true);
       const response = await fetch(`${API_BASE}/tests`, {
@@ -83,7 +60,7 @@ const AdminTestView = () => {
     } finally {
       setLoading(false);
     }
-  };
+  }, [token]);
 
   const handleTabChange = (event, newValue) => {
     setTab(newValue);
