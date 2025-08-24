@@ -92,23 +92,84 @@ const TeacherTestView = () => {
 
   const handleSubmit = async (e) => {
     e.preventDefault();
+    console.log('Form submitted!');
+    console.log('Form data:', formData);
+    
+    // Client-side validation
+    if (!formData.title.trim()) {
+      console.log('Validation failed: Title is required');
+      setError('Title is required');
+      return;
+    }
+    if (!formData.subject) {
+      console.log('Validation failed: Subject is required');
+      setError('Subject is required');
+      return;
+    }
+    if (!formData.topic.trim() || formData.topic.trim().length < 3) {
+      console.log('Validation failed: Topic must be at least 3 characters');
+      setError('Topic must be at least 3 characters');
+      return;
+    }
+    if (!formData.totalMarks || formData.totalMarks < 1 || formData.totalMarks > 100) {
+      console.log('Validation failed: Total marks must be between 1 and 100');
+      setError('Total marks must be between 1 and 100');
+      return;
+    }
+    if (!formData.duration || formData.duration < 15 || formData.duration > 300) {
+      console.log('Validation failed: Duration must be between 15 and 300 minutes');
+      setError('Duration must be between 15 and 300 minutes');
+      return;
+    }
+    if (!formData.announcementDate || !formData.conductDate) {
+      console.log('Validation failed: Both announcement and conduct dates are required');
+      setError('Both announcement and conduct dates are required');
+      return;
+    }
+    if (formData.conductDate <= formData.announcementDate) {
+      console.log('Validation failed: Conduct date must be after announcement date');
+      setError('Conduct date must be after announcement date');
+      return;
+    }
+    
+    console.log('Validation passed, proceeding with API call');
     
     try {
       const url = editMode ? `${API_BASE}/tests/${selectedTest.id}` : `${API_BASE}/tests`;
       const method = editMode ? 'PUT' : 'POST';
       
+      console.log('API URL:', url);
+      console.log('API Method:', method);
+      console.log('Token:', token ? 'Present' : 'Missing');
+      
+      // Prepare data for API - convert dates to ISO strings and ensure proper types
+      const apiData = {
+        ...formData,
+        totalMarks: parseInt(formData.totalMarks),
+        duration: parseInt(formData.duration),
+        announcementDate: formData.announcementDate.toISOString(),
+        conductDate: formData.conductDate.toISOString()
+      };
+      
+      console.log('Submitting test data:', apiData);
+      
+      console.log('Making API request...');
       const response = await fetch(url, {
         method,
         headers: {
           'Content-Type': 'application/json',
           Authorization: `Bearer ${token}`
         },
-        body: JSON.stringify(formData)
+        body: JSON.stringify(apiData)
       });
+
+      console.log('Response status:', response.status);
+      console.log('Response ok:', response.ok);
 
       if (!response.ok) {
         const errorData = await response.json();
-        throw new Error(errorData.message || 'Failed to save test');
+        console.error('API Error:', errorData);
+        throw new Error(errorData.message || errorData.errors?.[0]?.msg || 'Failed to save test');
       }
 
       setSuccess(editMode ? 'Test updated successfully!' : 'Test created successfully!');
@@ -118,6 +179,7 @@ const TeacherTestView = () => {
       
       setTimeout(() => setSuccess(''), 3000);
     } catch (err) {
+      console.error('Submit error:', err);
       setError('Failed to save test: ' + err.message);
     }
   };
@@ -135,6 +197,7 @@ const TeacherTestView = () => {
       instructions: test.instructions || ''
     });
     setEditMode(true);
+    setError(''); // Clear any previous errors
     setOpenDialog(true);
   };
 
@@ -173,8 +236,11 @@ const TeacherTestView = () => {
   };
 
   const openCreateDialog = () => {
+    console.log('Opening create dialog...');
     resetForm();
+    setError(''); // Clear any previous errors
     setOpenDialog(true);
+    console.log('Dialog state should be open now');
   };
 
   const getStatusColor = (status) => {
@@ -360,7 +426,10 @@ const TeacherTestView = () => {
         {/* Create/Edit Test Dialog */}
         <Dialog 
           open={openDialog} 
-          onClose={() => setOpenDialog(false)} 
+          onClose={() => {
+            console.log('Dialog closing...');
+            setOpenDialog(false);
+          }} 
           maxWidth="md" 
           fullWidth
         >
@@ -375,7 +444,10 @@ const TeacherTestView = () => {
                     fullWidth
                     label="Test Title"
                     value={formData.title}
-                    onChange={(e) => setFormData({ ...formData, title: e.target.value })}
+                    onChange={(e) => {
+                      setFormData({ ...formData, title: e.target.value });
+                      if (error) setError(''); // Clear error when user starts typing
+                    }}
                     required
                     helperText="Enter a descriptive title for the test"
                   />
@@ -427,8 +499,13 @@ const TeacherTestView = () => {
                     label="Announcement Date"
                     value={formData.announcementDate}
                     onChange={(newValue) => setFormData({ ...formData, announcementDate: newValue })}
-                    renderInput={(params) => <TextField {...params} fullWidth required />}
                     minDateTime={new Date()}
+                    slotProps={{
+                      textField: {
+                        fullWidth: true,
+                        required: true
+                      }
+                    }}
                   />
                 </Grid>
 
@@ -437,8 +514,13 @@ const TeacherTestView = () => {
                     label="Conduct Date"
                     value={formData.conductDate}
                     onChange={(newValue) => setFormData({ ...formData, conductDate: newValue })}
-                    renderInput={(params) => <TextField {...params} fullWidth required />}
                     minDateTime={new Date()}
+                    slotProps={{
+                      textField: {
+                        fullWidth: true,
+                        required: true
+                      }
+                    }}
                   />
                 </Grid>
 
@@ -451,7 +533,7 @@ const TeacherTestView = () => {
                     value={formData.topic}
                     onChange={(e) => setFormData({ ...formData, topic: e.target.value })}
                     required
-                    helperText="Describe what the test will cover"
+                    helperText="Describe what the test will cover (minimum 3 characters)"
                   />
                 </Grid>
 
@@ -469,7 +551,10 @@ const TeacherTestView = () => {
               </Grid>
             </DialogContent>
             <DialogActions>
-              <Button onClick={() => setOpenDialog(false)}>Cancel</Button>
+              <Button onClick={() => {
+                setOpenDialog(false);
+                setError(''); // Clear errors when closing dialog
+              }}>Cancel</Button>
               <Button type="submit" variant="contained">
                 {editMode ? 'Update Test' : 'Create Test'}
               </Button>

@@ -156,7 +156,7 @@ const AdminTestView = () => {
     }
   };
 
-  const openGradeDialog = (test, submission) => {
+  const handleOpenGradeDialog = (test, submission) => {
     setSelectedTest(test);
     setSelectedSubmission(submission);
     setGradeData({ 
@@ -469,7 +469,7 @@ const AdminTestView = () => {
                                   <Button
                                     size="small"
                                     variant="outlined"
-                                    onClick={() => openGradeDialog(selectedTest, submission)}
+                                    onClick={() => handleOpenGradeDialog(selectedTest, submission)}
                                   >
                                     Grade
                                   </Button>

@@ -34,7 +34,7 @@ const TestSubmission = sequelize.define('TestSubmission', {
     type: DataTypes.UUID,
     allowNull: false,
     references: {
-      model: 'tests', // Changed from 'Tests' to 'tests' (lowercase)
+      model: 'Tests', // Fixed to match the actual table name
       key: 'id'
     }
   },

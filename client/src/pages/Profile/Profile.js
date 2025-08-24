@@ -61,6 +61,14 @@ import {
   TrendingUp as TrendingUpIcon,
   Assessment as AssessmentIcon
 } from '@mui/icons-material';
+import {
+  Timeline,
+  TimelineItem,
+  TimelineSeparator,
+  TimelineDot,
+  TimelineConnector,
+  TimelineContent
+} from '@mui/lab';
 import { useAuth } from '../../contexts/AuthContext';
 
 const Profile = () => {
