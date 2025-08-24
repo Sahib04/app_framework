@@ -1,4 +1,6 @@
 const { sequelize } = require('../config/database');
+
+// Import models (all are already defined with sequelize instance)
 const User = require('./User');
 const Course = require('./Course');
 const Class = require('./Class');
