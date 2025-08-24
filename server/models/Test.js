@@ -59,7 +59,7 @@ const Test = sequelize.define('Test', {
     type: DataTypes.UUID,
     allowNull: false,
     references: {
-      model: 'Users',
+      model: 'users', // Changed from 'Users' to 'users' (lowercase)
       key: 'id'
     }
   }

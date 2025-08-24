@@ -34,7 +34,7 @@ const TestSubmission = sequelize.define('TestSubmission', {
     type: DataTypes.UUID,
     allowNull: false,
     references: {
-      model: 'Tests',
+      model: 'tests', // Changed from 'Tests' to 'tests' (lowercase)
       key: 'id'
     }
   },
@@ -42,7 +42,7 @@ const TestSubmission = sequelize.define('TestSubmission', {
     type: DataTypes.UUID,
     allowNull: false,
     references: {
-      model: 'Users',
+      model: 'users', // Changed from 'Users' to 'users' (lowercase)
       key: 'id'
     }
   }
