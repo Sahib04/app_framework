@@ -23,7 +23,7 @@ const TestComment = sequelize.define('TestComment', {
     type: DataTypes.UUID,
     allowNull: false,
     references: {
-      model: 'Tests', // Fixed to match the actual table name
+      model: 'tests', // Changed from 'Tests' to 'tests' (lowercase)
       key: 'id'
     }
   },

@@ -61,30 +61,15 @@ const StudentTestView = () => {
   const loadTests = async () => {
     try {
       setLoading(true);
-      console.log('🔍 Loading tests for student...');
-      console.log('🔍 API URL:', `${API_BASE}/tests`);
-      console.log('🔍 Token:', token ? 'Present' : 'Missing');
-      
       const response = await fetch(`${API_BASE}/tests`, {
         headers: { Authorization: `Bearer ${token}` }
       });
       
-      console.log('🔍 Response status:', response.status);
-      console.log('🔍 Response ok:', response.ok);
-      
-      if (!response.ok) {
-        const errorText = await response.text();
-        console.error('🔍 Error response:', errorText);
-        throw new Error(`HTTP ${response.status}: ${errorText}`);
-      }
+      if (!response.ok) throw new Error('Failed to load tests');
       
       const data = await response.json();
-      console.log('🔍 Response data:', data);
-      console.log('🔍 Tests array:', data.tests);
-      
       setTests(data.tests || []);
     } catch (err) {
-      console.error('🔍 Error loading tests:', err);
       setError('Failed to load tests: ' + err.message);
     } finally {
       setLoading(false);

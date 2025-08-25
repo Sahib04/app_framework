@@ -35,7 +35,8 @@ import {
   Message,
   Event,
   Assessment,
-  School
+  School,
+  AssignmentIcon
 } from '@mui/icons-material';
 import { useAuth } from '../../contexts/AuthContext';
 import { useNavigate } from 'react-router-dom';
@@ -135,7 +136,7 @@ const TeacherDashboard = () => {
     {
       title: 'Tests',
       description: 'Create and manage tests, track student performance',
-      icon: <Assignment />,
+      icon: <AssignmentIcon />,
       color: '#FF5722',
       path: '/tests',
       stats: 'Test management'

@@ -5,6 +5,8 @@ yarn-debug.log*
 yarn-error.log*
 
 # Environment variables
+read_db.py
+db_exports
 .env
 .env.local
 .env.development.local
@@ -12,13 +14,18 @@ yarn-error.log*
 .env.production.local
 
 # Build outputs
-client/build/
-client/dist/
-server/dist/
+/build
+/dist
+/client/build
+/client/dist
 
 # Logs
 logs
 *.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+lerna-debug.log*
 
 # Runtime data
 pids
@@ -28,15 +35,40 @@ pids
 
 # Coverage directory used by tools like istanbul
 coverage/
+*.lcov
 
 # nyc test coverage
 .nyc_output
 
+# Grunt intermediate storage
+.grunt
+
+# Bower dependency directory
+bower_components
+
+# node-waf configuration
+.lock-wscript
+
+# Compiled binary addons
+build/Release
+
 # Dependency directories
 jspm_packages/
 
+# TypeScript cache
+*.tsbuildinfo
+
 # Optional npm cache directory
 .npm
+
+# Optional eslint cache
+.eslintcache
+
+# Microbundle cache
+.rpt2_cache/
+.rts2_cache_cjs/
+.rts2_cache_es/
+.rts2_cache_umd/
 
 # Optional REPL history
 .node_repl_history
@@ -48,44 +80,37 @@ jspm_packages/
 .yarn-integrity
 
 # dotenv environment variables file
-.env
+.env.test
 
-# parcel-bundler cache (https://parceljs.org/)
+# parcel-bundler cache
 .cache
 .parcel-cache
 
-# next.js build output
+# Next.js build output
 .next
 
-# nuxt.js build output
+# Nuxt.js build / generate output
 .nuxt
+dist
 
-# vuepress build output
-.vuepress/dist
+# Gatsby files
+.cache/
 
-# Serverless directories
-.serverless
 
-# FuseBox cache
-.fusebox/
+# Storybook build outputs
+.out
+.storybook-out
 
-# DynamoDB Local files
-.dynamodb/
+# Temporary folders
+tmp/
+temp/
 
-# TernJS port file
-.tern-port
-
-# Stores VSCode versions used for testing VSCode extensions
-.vscode-test
-
-# Uploads
-uploads/
-!uploads/.gitkeep
-
-# Database
-*.db
-*.sqlite
-*.sqlite3
+# Editor directories and files
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
 
 # OS generated files
 .DS_Store
@@ -96,23 +121,51 @@ uploads/
 ehthumbs.db
 Thumbs.db
 
-# IDE files
-.vscode/
-.idea/
-*.swp
-*.swo
-*~
+# Uploads and user content
+uploads/
+public/uploads/
 
-# Temporary files
-*.tmp
-*.temp
+# Database files
+*.db
+*.sqlite
+*.sqlite3
 
 # Backup files
-*.bak
+backups/
 *.backup
+
+# SSL certificates
+*.pem
+*.key
+*.crt
+
+# Docker
+.dockerignore
+docker-compose.override.yml
+
+# Testing
+coverage/
+.nyc_output/
+
+# Production
+/build
+
+# Misc
+*.tgz
+*.tar.gz
 
 # Local development
 .env.local
 .env.development.local
 .env.test.local
 .env.production.local
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# OS
+.DS_Store
+Thumbs.db

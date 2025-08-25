@@ -2,7 +2,6 @@ const express = require('express');
 const { body, validationResult } = require('express-validator');
 const { authenticateToken, authorizeRoles } = require('../middleware/auth');
 const { Test, TestComment, TestSubmission, User } = require('../models');
-const { Op } = require('sequelize');
 
 const router = express.Router();
 
@@ -10,15 +9,22 @@ const router = express.Router();
 router.get('/', authenticateToken, async (req, res) => {
   try {
     const { status, subject, search } = req.query;
+    const where = { isActive: true };
+    
+    if (status && status !== 'all') {
+      where.status = status;
+    }
+    
+    if (subject && subject !== 'all') {
+      where.subject = subject;
+    }
 
     let tests;
     if (req.user.role === 'teacher') {
       // Teachers see their own tests
+      where.teacherId = req.user.id;
       tests = await Test.findAll({
-        where: {
-          isActive: true,
-          teacherId: req.user.id
-        },
+        where,
         include: [
           { model: User, as: 'teacher', attributes: ['id', 'firstName', 'lastName', 'email'] },
           { model: TestComment, as: 'comments', include: [{ model: User, as: 'user', attributes: ['id', 'firstName', 'lastName', 'role'] }] },
@@ -27,32 +33,21 @@ router.get('/', authenticateToken, async (req, res) => {
         order: [['conductDate', 'ASC']]
       });
     } else if (req.user.role === 'student') {
-      // Students see all active tests with status upcoming or active
-      console.log('🔍 Student requesting tests...');
-      
-      // Simple approach: get all active tests with upcoming/active status
-             tests = await Test.findAll({
-         where: {
-           isActive: true,
-           status: { [Op.in]: ['upcoming', 'active'] }
-         },
-         include: [
-           { model: User, as: 'teacher', attributes: ['id', 'firstName', 'lastName', 'email'] },
-           { model: TestComment, as: 'comments', include: [{ model: User, as: 'user', attributes: ['id', 'firstName', 'lastName', 'role'] }] },
-           { model: TestSubmission, as: 'submissions', where: { studentId: req.user.id }, required: false }
-         ],
-         order: [['conductDate', 'ASC']]
-       });
-      
-      console.log('🔍 Tests found for student:', tests.length);
-      console.log('🔍 Test IDs:', tests.map(t => t.id));
-      console.log('🔍 Test titles:', tests.map(t => t.title));
+      // Students see all active tests
+      where.status = ['upcoming', 'active'];
+      tests = await Test.findAll({
+        where,
+        include: [
+          { model: User, as: 'teacher', attributes: ['id', 'firstName', 'lastName', 'email'] },
+          { model: TestComment, as: 'comments', include: [{ model: User, as: 'user', attributes: ['id', 'firstName', 'lastName', 'role'] }] },
+          { model: TestSubmission, as: 'submissions', where: { studentId: req.user.id } }
+        ],
+        order: [['conductDate', 'ASC']]
+      });
     } else if (req.user.role === 'admin') {
       // Admins see all tests
       tests = await Test.findAll({
-        where: {
-          isActive: true
-        },
+        where,
         include: [
           { model: User, as: 'teacher', attributes: ['id', 'firstName', 'lastName', 'email'] },
           { model: TestComment, as: 'comments', include: [{ model: User, as: 'user', attributes: ['id', 'firstName', 'lastName', 'role'] }] },
@@ -70,10 +65,6 @@ router.get('/', authenticateToken, async (req, res) => {
         test.topic.toLowerCase().includes(search.toLowerCase())
       );
     }
-
-    console.log('🔍 Final tests count:', tests.length);
-    console.log('🔍 Tests for role:', req.user.role);
-    console.log('🔍 User ID:', req.user.id);
 
     res.json({
       success: true,
@@ -143,29 +134,10 @@ router.post('/', authenticateToken, authorizeRoles('teacher', 'admin'), [
     const testData = {
       ...req.body,
       teacherId: req.user.id,
-      status: 'upcoming',
-      isActive: true  // Explicitly set to ensure it's true
+      status: 'upcoming'
     };
 
-    console.log('🔍 Creating test with data:', testData);
     const test = await Test.create(testData);
-    console.log('🔍 Test created successfully:', {
-      id: test.id,
-      title: test.title,
-      status: test.status,
-      isActive: test.isActive,
-      teacherId: test.teacherId
-    });
-    
-    // Let's verify what was actually saved in the database
-    const savedTest = await Test.findByPk(test.id);
-    console.log('🔍 Test from database:', {
-      id: savedTest.id,
-      title: savedTest.title,
-      status: savedTest.status,
-      isActive: savedTest.isActive,
-      teacherId: savedTest.teacherId
-    });
     
     const createdTest = await Test.findByPk(test.id, {
       include: [

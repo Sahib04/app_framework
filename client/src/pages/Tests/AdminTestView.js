@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   Box,
   Grid,
@@ -10,25 +10,48 @@ import {
   Chip,
   Tabs,
   Tab,
+  List,
+  ListItem,
+  ListItemText,
+  ListItemSecondaryAction,
+  Divider,
   Alert,
   Dialog,
   DialogTitle,
   DialogContent,
   DialogActions,
   TextField,
-  IconButton
+  FormControl,
+  InputLabel,
+  Select,
+  MenuItem,
+  ListItemAvatar,
+  Avatar,
+  IconButton,
+  Table,
+  TableBody,
+  TableCell,
+  TableContainer,
+  TableHead,
+  TableRow,
+  LinearProgress
 } from '@mui/material';
 import {
+  Assignment as AssignmentIcon,
   Schedule as ScheduleIcon,
   Grade as GradeIcon,
-  PlayArrow as PlayIcon
+  Comment as CommentIcon,
+  Visibility as VisibilityIcon,
+  TrendingUp as TrendingUpIcon,
+  People as PeopleIcon,
+  Assessment as AssessmentIcon
 } from '@mui/icons-material';
 import { useAuth } from '../../contexts/AuthContext';
 
 const API_BASE = process.env.REACT_APP_API_URL ? `${process.env.REACT_APP_API_URL}/api` : 'http://localhost:5000/api';
 
 const AdminTestView = () => {
-  const { token } = useAuth();
+  const { user, token } = useAuth();
   const [tests, setTests] = useState([]);
   const [loading, setLoading] = useState(false);
   const [tab, setTab] = useState(0);
@@ -42,9 +65,9 @@ const AdminTestView = () => {
 
   useEffect(() => {
     loadTests();
-  }, [loadTests]);
+  }, []);
 
-  const loadTests = useCallback(async () => {
+  const loadTests = async () => {
     try {
       setLoading(true);
       const response = await fetch(`${API_BASE}/tests`, {
@@ -60,7 +83,7 @@ const AdminTestView = () => {
     } finally {
       setLoading(false);
     }
-  }, [token]);
+  };
 
   const handleTabChange = (event, newValue) => {
     setTab(newValue);
@@ -133,7 +156,7 @@ const AdminTestView = () => {
     }
   };
 
-  const handleOpenGradeDialog = (test, submission) => {
+  const openGradeDialog = (test, submission) => {
     setSelectedTest(test);
     setSelectedSubmission(submission);
     setGradeData({ 
@@ -446,7 +469,7 @@ const AdminTestView = () => {
                                   <Button
                                     size="small"
                                     variant="outlined"
-                                    onClick={() => handleOpenGradeDialog(selectedTest, submission)}
+                                    onClick={() => openGradeDialog(selectedTest, submission)}
                                   >
                                     Grade
                                   </Button>

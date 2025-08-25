@@ -34,7 +34,8 @@ import {
   Assessment,
   School,
   TrendingUp,
-  Notifications
+  Notifications,
+  AssignmentIcon
 } from '@mui/icons-material';
 import { useAuth } from '../../contexts/AuthContext';
 import { useNavigate } from 'react-router-dom';
@@ -116,7 +117,7 @@ const StudentDashboard = () => {
     {
       title: 'Tests',
       description: 'Take tests and view your performance',
-      icon: <Assignment />,
+      icon: <AssignmentIcon />,
       color: '#FF5722',
       path: '/tests',
       stats: 'Test center'
