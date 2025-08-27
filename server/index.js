@@ -88,6 +88,8 @@ const errorHandler = require('./middleware/errorHandler');
 
 // Security middleware
 app.use(helmet());
+// Behind a proxy on Render/Heroku/etc. Needed for correct req.ip and rate limiter
+app.set('trust proxy', 1);
 app.use(cors({
 	origin: resolveAllowedOrigins(),
 	credentials: true,
@@ -155,20 +157,22 @@ app.get('/api/health', (req, res) => {
 	});
 });
 
-// Friendly welcome routes
-app.get('/', (req, res) => {
-	res.json({
-		message: 'School Management API',
-		health: '/api/health',
-		docs: '/api',
+// Friendly welcome routes (development only). In production we serve React build.
+if (process.env.NODE_ENV !== 'production') {
+	app.get('/', (req, res) => {
+		res.json({
+			message: 'School Management API',
+			health: '/api/health',
+			docs: '/api',
+		});
 	});
-});
 
-app.get('/api', (req, res) => {
-	res.json({
-		message: 'Welcome to the API. See /api/health for status.'
+	app.get('/api', (req, res) => {
+		res.json({
+			message: 'Welcome to the API. See /api/health for status.'
+		});
 	});
-});
+}
 
 // Serve React app in production
 if (process.env.NODE_ENV === 'production') {
