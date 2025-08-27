@@ -44,7 +44,8 @@ import {
   Visibility as VisibilityIcon,
   TrendingUp as TrendingUpIcon,
   People as PeopleIcon,
-  Assessment as AssessmentIcon
+  Assessment as AssessmentIcon,
+  PlayArrow as PlayArrowIcon
 } from '@mui/icons-material';
 import { useAuth } from '../../contexts/AuthContext';
 
@@ -251,7 +252,7 @@ const AdminTestView = () => {
             />
             <Tab 
               label={`Active (${tests.filter(t => t.status === 'active').length})`} 
-              icon={<PlayIcon />} 
+              icon={<PlayArrowIcon />} 
               iconPosition="start"
             />
             <Tab 
