@@ -4,14 +4,29 @@ const cors = require('cors');
 const helmet = require('helmet');
 const rateLimit = require('express-rate-limit');
 const path = require('path');
+const fs = require('fs');
 require('dotenv').config();
 
 const app = express();
 const http = require('http').createServer(app);
 const { Server } = require('socket.io');
+// Resolve allowed CORS origins from env (comma-separated) or sensible defaults
+const resolveAllowedOrigins = () => {
+	const fromEnv = process.env.CORS_ORIGIN || process.env.FRONTEND_URL;
+	if (fromEnv) {
+		return String(fromEnv)
+			.split(',')
+			.map((s) => s.trim())
+			.filter(Boolean);
+	}
+	return process.env.NODE_ENV === 'production'
+		? ['https://yourdomain.com']
+		: ['http://localhost:3000'];
+};
+
 const io = new Server(http, {
 	cors: {
-		origin: process.env.NODE_ENV === 'production' ? ['https://yourdomain.com'] : ['http://localhost:3000'],
+		origin: resolveAllowedOrigins(),
 		credentials: true,
 	},
 });
@@ -74,10 +89,8 @@ const errorHandler = require('./middleware/errorHandler');
 // Security middleware
 app.use(helmet());
 app.use(cors({
-	origin: process.env.NODE_ENV === 'production' 
-		? ['https://yourdomain.com'] 
-		: ['http://localhost:3000'],
-	credentials: true
+	origin: resolveAllowedOrigins(),
+	credentials: true,
 }));
 
 // Rate limiting
@@ -92,8 +105,18 @@ app.use('/api/', limiter);
 app.use(express.json({ limit: '10mb' }));
 app.use(express.urlencoded({ extended: true, limit: '10mb' }));
 
+// Ensure uploads directory exists (useful for ephemeral containers)
+const uploadsDir = path.join(__dirname, '../uploads');
+try {
+	if (!fs.existsSync(uploadsDir)) {
+		fs.mkdirSync(uploadsDir, { recursive: true });
+	}
+} catch (_) {
+	// ignore
+}
+
 // Static files
-app.use('/uploads', express.static(path.join(__dirname, '../uploads')));
+app.use('/uploads', express.static(uploadsDir));
 
 // Test the database connection
 sequelize.authenticate()

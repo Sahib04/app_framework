@@ -10,6 +10,14 @@ class EmailService {
 
   async initializeTransporter() {
     try {
+      const isEmailEnabled = process.env.ENABLE_EMAIL === 'true';
+
+      if (!isEmailEnabled) {
+        console.log('✳️ Email service disabled (set ENABLE_EMAIL=true to enable)');
+        this.transporter = null;
+        return;
+      }
+
       this.transporter = nodemailer.createTransport({
         host: process.env.SMTP_HOST,
         port: process.env.SMTP_PORT,

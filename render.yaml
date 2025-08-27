@@ -1,0 +1,29 @@
+services:
+  - type: web
+    name: school-management-backend
+    env: node
+    plan: free
+    region: oregon
+    buildCommand: npm install && npm run build || npm install
+    startCommand: node server/index.js
+    autoDeploy: true
+    envVars:
+      - key: NODE_ENV
+        value: production
+      - key: PORT
+        value: 10000
+      - key: ENABLE_EMAIL
+        value: false
+      - key: CORS_ORIGIN
+        value: https://school-management-client.onrender.com
+    healthCheckPath: /api/health
+
+  - type: web
+    name: school-management-client
+    env: static
+    plan: free
+    region: oregon
+    buildCommand: cd client && npm install && npm run build
+    staticPublishPath: client/build
+    autoDeploy: true
+
