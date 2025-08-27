@@ -1,6 +1,17 @@
 import axios from 'axios';
 
-const API_URL = process.env.REACT_APP_API_URL || 'http://localhost:5000/api';
+// Resolve API base URL
+// Priority:
+// 1) REACT_APP_API_URL (can be full URL or without /api)
+// 2) If in browser, use current origin (works in Render single-service deploy)
+// 3) Fallback to localhost for local dev
+const configuredBase = process.env.REACT_APP_API_URL;
+const resolvedBase = configuredBase
+  ? configuredBase.replace(/\/$/, '')
+  : (typeof window !== 'undefined' && window.location?.origin)
+    ? window.location.origin
+    : 'http://localhost:5000';
+const API_URL = resolvedBase.endsWith('/api') ? resolvedBase : `${resolvedBase}/api`;
 
 // Create axios instance
 const api = axios.create({
