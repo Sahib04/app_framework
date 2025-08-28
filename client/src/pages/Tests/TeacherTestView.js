@@ -243,6 +243,23 @@ const TeacherTestView = () => {
     console.log('Dialog state should be open now');
   };
 
+  const getDerivedStatus = (test) => {
+    try {
+      const start = new Date(test.conductDate).getTime();
+      const now = Date.now();
+      const durationMinutes = Number(test.duration) || 0;
+      const end = start + durationMinutes * 60 * 1000;
+
+      if (Number.isFinite(start)) {
+        if (now < start) return 'upcoming';
+        if (durationMinutes > 0 && now <= end) return 'active';
+        if (now >= start && durationMinutes === 0) return 'active';
+        return 'completed';
+      }
+    } catch (_) {}
+    return test.status || 'upcoming';
+  };
+
   const getStatusColor = (status) => {
     switch (status) {
       case 'upcoming': return 'primary';
@@ -322,8 +339,8 @@ const TeacherTestView = () => {
                     {/* Status Badge */}
                     <Box sx={{ position: 'absolute', top: 16, right: 16 }}>
                       <Chip 
-                        label={test.status} 
-                        color={getStatusColor(test.status)}
+                        label={getDerivedStatus(test)} 
+                        color={getStatusColor(getDerivedStatus(test))}
                         size="small"
                       />
                     </Box>

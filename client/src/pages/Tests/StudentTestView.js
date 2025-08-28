@@ -95,14 +95,33 @@ const StudentTestView = () => {
     setTab(newValue);
   };
 
+  const getDerivedStatus = (test) => {
+    try {
+      const start = new Date(test.conductDate).getTime();
+      const now = Date.now();
+      const durationMinutes = Number(test.duration) || 0;
+      const end = start + durationMinutes * 60 * 1000;
+
+      if (Number.isFinite(start)) {
+        if (now < start) return 'upcoming';
+        if (durationMinutes > 0 && now <= end) return 'active';
+        if (now >= start && durationMinutes === 0) return 'active';
+        return 'completed';
+      }
+    } catch (_) {
+      // ignore parsing errors; fall back to server status
+    }
+    return test.status || 'upcoming';
+  };
+
   const getFilteredTests = () => {
     switch (tab) {
       case 0: // Active Tests
-        return tests.filter(test => test.status === 'active');
+        return tests.filter(test => getDerivedStatus(test) === 'active');
       case 1: // Upcoming Tests
-        return tests.filter(test => test.status === 'upcoming');
+        return tests.filter(test => getDerivedStatus(test) === 'upcoming');
       case 2: // Completed Tests
-        return tests.filter(test => test.status === 'completed');
+        return tests.filter(test => getDerivedStatus(test) === 'completed');
       default:
         return tests;
     }
@@ -205,17 +224,17 @@ const StudentTestView = () => {
         <Paper sx={{ mb: 3 }}>
           <Tabs value={tab} onChange={handleTabChange} centered>
             <Tab 
-              label={`Active Tests (${tests.filter(t => t.status === 'active').length})`} 
+              label={`Active Tests (${tests.filter(t => (typeof t === 'object' && t) ? ( (()=>{ const start= new Date(t.conductDate).getTime(); const now=Date.now(); const dm=Number(t.duration)||0; const end=start + dm*60*1000; if(Number.isFinite(start)){ if(now < start) return false; if(dm>0 && now <= end) return true; if(now >= start && dm===0) return true; return false;} return (t.status==='active'); })() ) : 0).length})`} 
               icon={<PlayIcon />} 
               iconPosition="start"
             />
             <Tab 
-              label={`Upcoming Tests (${tests.filter(t => t.status === 'upcoming').length})`} 
+              label={`Upcoming Tests (${tests.filter(t => (typeof t === 'object' && t) ? ( (()=>{ const start= new Date(t.conductDate).getTime(); const now=Date.now(); if(Number.isFinite(start)){ return now < start; } return (t.status==='upcoming'); })() ) : 0).length})`} 
               icon={<ScheduleIcon />} 
               iconPosition="start"
             />
             <Tab 
-              label={`Completed Tests (${tests.filter(t => t.status === 'completed').length})`} 
+              label={`Completed Tests (${tests.filter(t => (typeof t === 'object' && t) ? ( (()=>{ const start= new Date(t.conductDate).getTime(); const now=Date.now(); const dm=Number(t.duration)||0; const end=start + dm*60*1000; if(Number.isFinite(start)){ if(dm>0) return now > end; return now > start; } return (t.status==='completed'); })() ) : 0).length})`} 
               icon={<GradeIcon />} 
               iconPosition="start"
             />
@@ -262,8 +281,8 @@ const StudentTestView = () => {
                   {/* Status Badge */}
                   <Box sx={{ position: 'absolute', top: 16, right: 16 }}>
                     <Chip 
-                      label={test.status} 
-                      color={getStatusColor(test.status)}
+                      label={getDerivedStatus(test)} 
+                      color={getStatusColor(getDerivedStatus(test))}
                       size="small"
                     />
                   </Box>
@@ -320,7 +339,7 @@ const StudentTestView = () => {
 
                   {/* Actions */}
                   <Box sx={{ display: 'flex', gap: 1 }}>
-                    {test.status === 'active' && (
+                    {getDerivedStatus(test) === 'active' && (
                       <Button
                         size="small"
                         variant="contained"
@@ -331,7 +350,7 @@ const StudentTestView = () => {
                         Take Test
                       </Button>
                     )}
-                    {test.status === 'upcoming' && (
+                    {getDerivedStatus(test) === 'upcoming' && (
                       <Button
                         size="small"
                         variant="outlined"

@@ -3,6 +3,7 @@ const { sequelize } = require('../config/database');
 // Import models (all are already defined with sequelize instance)
 const User = require('./User');
 const Course = require('./Course');
+const CourseEnrollment = require('./CourseEnrollment');
 const Class = require('./Class');
 const Conversation = require('./Conversation');
 const Message = require('./Message');
@@ -38,6 +39,7 @@ module.exports = {
 	sequelize,
 	User,
 	Course,
+  CourseEnrollment,
 	Class,
 	Conversation,
 	Message,

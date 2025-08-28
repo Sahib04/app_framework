@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useMemo, useEffect } from 'react';
 import {
   Box,
   Grid,
@@ -60,117 +60,60 @@ import {
   Email as EmailIcon
 } from '@mui/icons-material';
 import { useAuth } from '../../contexts/AuthContext';
+// Resolve API base URL similar to services/api
+const configuredBase = process.env.REACT_APP_API_URL;
+const resolvedBase = configuredBase
+  ? configuredBase.replace(/\/$/, '')
+  : (typeof window !== 'undefined' && window.location?.origin)
+    ? window.location.origin
+    : 'http://localhost:5000';
+const API_BASE = resolvedBase.endsWith('/api') ? resolvedBase : `${resolvedBase}/api`;
 
 const Grades = () => {
   const { user } = useAuth();
   const [searchTerm, setSearchTerm] = useState('');
-  const [filterCourse, setFilterCourse] = useState('all');
-  const [filterSemester, setFilterSemester] = useState('all');
-  const [openDialog, setOpenDialog] = useState(false);
   const [viewMode, setViewMode] = useState(0);
+  const [selectedGrade, setSelectedGrade] = useState('All');
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState('');
 
-  // Mock data - replace with actual API calls
-  const grades = [
-    {
-      id: 1,
-      studentName: 'Alex Johnson',
-      studentId: 'STU001',
-      course: 'Advanced Mathematics',
-      instructor: 'Dr. Sarah Johnson',
-      semester: 'Fall 2024',
-      assignments: [
-        { name: 'Problem Set 1', score: 95, maxScore: 100, weight: 0.15 },
-        { name: 'Midterm Exam', score: 88, maxScore: 100, weight: 0.30 },
-        { name: 'Final Project', score: 92, maxScore: 100, weight: 0.25 },
-        { name: 'Participation', score: 90, maxScore: 100, weight: 0.10 },
-        { name: 'Final Exam', score: 89, maxScore: 100, weight: 0.20 }
-      ],
-      finalGrade: 'A-',
-      gpa: 3.7,
-      image: 'https://source.unsplash.com/100x100/?student',
-      lastUpdated: '2024-02-10'
-    },
-    {
-      id: 2,
-      studentName: 'Maria Garcia',
-      studentId: 'STU002',
-      course: 'Computer Science Fundamentals',
-      instructor: 'Prof. Michael Chen',
-      semester: 'Fall 2024',
-      assignments: [
-        { name: 'Programming Project 1', score: 85, maxScore: 100, weight: 0.20 },
-        { name: 'Midterm Exam', score: 92, maxScore: 100, weight: 0.30 },
-        { name: 'Final Project', score: 88, maxScore: 100, weight: 0.30 },
-        { name: 'Participation', score: 95, maxScore: 100, weight: 0.10 },
-        { name: 'Final Exam', score: 90, maxScore: 100, weight: 0.10 }
-      ],
-      finalGrade: 'A-',
-      gpa: 3.8,
-      image: 'https://source.unsplash.com/100x100/?student-female',
-      lastUpdated: '2024-02-10'
-    },
-    {
-      id: 3,
-      studentName: 'David Chen',
-      studentId: 'STU003',
-      course: 'English Literature',
-      instructor: 'Dr. Emily Davis',
-      semester: 'Fall 2024',
-      assignments: [
-        { name: 'Essay 1', score: 78, maxScore: 100, weight: 0.25 },
-        { name: 'Midterm Exam', score: 82, maxScore: 100, weight: 0.25 },
-        { name: 'Final Essay', score: 85, maxScore: 100, weight: 0.30 },
-        { name: 'Participation', score: 88, maxScore: 100, weight: 0.10 },
-        { name: 'Final Exam', score: 80, maxScore: 100, weight: 0.10 }
-      ],
-      finalGrade: 'B+',
-      gpa: 3.3,
-      image: 'https://source.unsplash.com/100x100/?student-male',
-      lastUpdated: '2024-02-10'
-    }
-  ];
+  const gradeLevels = useMemo(() => (
+    ['Nursery', 'KG', ...Array.from({ length: 12 }, (_, i) => `Grade ${i + 1}`)]
+  ), []);
 
-  const courses = ['all', 'Advanced Mathematics', 'Computer Science Fundamentals', 'English Literature'];
-  const semesters = ['all', 'Fall 2024', 'Spring 2024', 'Summer 2024'];
+  const [serverSummaries, setServerSummaries] = useState([]);
 
-  const filteredGrades = grades.filter(grade => {
-    const matchesSearch = 
-      grade.studentName.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      grade.studentId.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      grade.course.toLowerCase().includes(searchTerm.toLowerCase());
-    const matchesCourse = filterCourse === 'all' || grade.course === filterCourse;
-    const matchesSemester = filterSemester === 'all' || grade.semester === filterSemester;
-    
-    return matchesSearch && matchesCourse && matchesSemester;
-  });
+  useEffect(() => {
+    const load = async () => {
+      try {
+        setLoading(true);
+        setError('');
+        const q = selectedGrade && selectedGrade !== 'All' ? `?level=${encodeURIComponent(selectedGrade)}` : '';
+        const res = await fetch(`${API_BASE}/grades/summary${q}`);
+        if (!res.ok) throw new Error(`HTTP ${res.status}`);
+        const data = await res.json();
+        const arr = Array.isArray(data?.summaries) ? data.summaries : [];
+        setServerSummaries(arr.map((g, i) => ({
+          id: i + 1,
+          level: g.level || 'Unassigned',
+          students: Number(g.students) || 0,
+          averageGpa: Number(g.averageGpa || 0),
+          topCourse: g.topCourse || '-',
+          lastUpdated: g.lastUpdated || new Date().toISOString()
+        })));
+      } catch (e) {
+        setError('Failed to load grade summaries');
+        setServerSummaries([]);
+      } finally {
+        setLoading(false);
+      }
+    };
+    load();
+  }, [selectedGrade]);
 
-  const handleAddGrade = () => {
-    setOpenDialog(true);
-  };
-
-  const handleCloseDialog = () => {
-    setOpenDialog(false);
-  };
-
-  const calculateWeightedScore = (assignments) => {
-    let totalWeightedScore = 0;
-    let totalWeight = 0;
-    
-    assignments.forEach(assignment => {
-      totalWeightedScore += (assignment.score / assignment.maxScore) * assignment.weight;
-      totalWeight += assignment.weight;
-    });
-    
-    return totalWeight > 0 ? (totalWeightedScore / totalWeight) * 100 : 0;
-  };
-
-  const getGradeColor = (grade) => {
-    if (grade.startsWith('A')) return 'success';
-    if (grade.startsWith('B')) return 'primary';
-    if (grade.startsWith('C')) return 'warning';
-    if (grade.startsWith('D')) return 'error';
-    return 'default';
-  };
+  const visibleSummaries = useMemo(() => (
+    (serverSummaries || []).filter(g => selectedGrade === 'All' || g.level === selectedGrade)
+  ), [serverSummaries, selectedGrade]);
 
   const getGPAColor = (gpa) => {
     if (gpa >= 3.8) return 'success';
@@ -178,6 +121,8 @@ const Grades = () => {
     if (gpa >= 3.0) return 'warning';
     return 'error';
   };
+
+  // Remove legacy mock and dialog handlers to ensure real data only
 
   return (
     <Box sx={{ p: 3 }}>
@@ -188,28 +133,32 @@ const Grades = () => {
         Grades
       </Typography>
           <Typography variant="body1" color="text.secondary">
-            Track and manage student academic performance
+            Track and manage student academic performance by grade level
           </Typography>
         </Box>
-        {(user?.role === 'admin' || user?.role === 'teacher') && (
-          <Fab
-            color="primary"
-            aria-label="add grade"
-            onClick={handleAddGrade}
-            sx={{ boxShadow: 3 }}
+        <FormControl sx={{ minWidth: 180 }}>
+          <InputLabel>Grade Level</InputLabel>
+          <Select
+            value={selectedGrade}
+            label="Grade Level"
+            onChange={(e) => setSelectedGrade(e.target.value)}
           >
-            <AddIcon />
-          </Fab>
-        )}
+            <MenuItem value="All">All</MenuItem>
+            {gradeLevels.map(g => (
+              <MenuItem key={g} value={g}>{g}</MenuItem>
+            ))}
+          </Select>
+        </FormControl>
+        {/* Admin actions can be added here if needed */}
       </Box>
 
-      {/* Search and Filters */}
+      {/* Search */}
       <Box sx={{ mb: 4 }}>
         <Grid container spacing={2} alignItems="center">
-          <Grid item xs={12} md={4}>
+          <Grid item xs={12} md={6}>
             <TextField
               fullWidth
-              placeholder="Search students or courses..."
+              placeholder="Search grade level or course..."
               value={searchTerm}
               onChange={(e) => setSearchTerm(e.target.value)}
               InputProps={{
@@ -217,54 +166,15 @@ const Grades = () => {
               }}
             />
           </Grid>
-          <Grid item xs={12} md={3}>
-            <FormControl fullWidth>
-              <InputLabel>Course</InputLabel>
-              <Select
-                value={filterCourse}
-                label="Course"
-                onChange={(e) => setFilterCourse(e.target.value)}
-              >
-                {courses.map((course) => (
-                  <MenuItem key={course} value={course}>
-                    {course === 'all' ? 'All Courses' : course}
-                  </MenuItem>
-                ))}
-              </Select>
-            </FormControl>
-          </Grid>
-          <Grid item xs={12} md={3}>
-            <FormControl fullWidth>
-              <InputLabel>Semester</InputLabel>
-              <Select
-                value={filterSemester}
-                label="Semester"
-                onChange={(e) => setFilterSemester(e.target.value)}
-              >
-                {semesters.map((semester) => (
-                  <MenuItem key={semester} value={semester}>
-                    {semester === 'all' ? 'All Semesters' : semester}
-                  </MenuItem>
-                ))}
-              </Select>
-            </FormControl>
-          </Grid>
-          <Grid item xs={12} md={2}>
-            <Button
-              variant="outlined"
-              startIcon={<FilterIcon />}
-              fullWidth
-              onClick={() => {
-                setSearchTerm('');
-                setFilterCourse('all');
-                setFilterSemester('all');
-              }}
-            >
-              Clear
-            </Button>
-          </Grid>
         </Grid>
       </Box>
+
+      {error && (
+        <Alert severity="error" sx={{ mb: 2 }}>{error}</Alert>
+      )}
+      {loading && (
+        <Typography sx={{ mb: 2 }}>Loading summaries...</Typography>
+      )}
 
       {/* View Mode Tabs */}
       <Box sx={{ mb: 3 }}>
@@ -277,143 +187,25 @@ const Grades = () => {
       {/* Card View */}
       {viewMode === 0 && (
         <Grid container spacing={3}>
-          {filteredGrades.map((grade) => (
-            <Grid item xs={12} md={6} lg={4} key={grade.id}>
+          {visibleSummaries
+            .filter(g => g.level.toLowerCase().includes(searchTerm.toLowerCase()) || g.topCourse.toLowerCase().includes(searchTerm.toLowerCase()))
+            .map((g) => (
+              <Grid item xs={12} md={6} lg={4} key={g.id}>
               <Card sx={{ height: '100%', display: 'flex', flexDirection: 'column', boxShadow: 3 }}>
                 <CardContent sx={{ flexGrow: 1 }}>
-                  {/* Header */}
-                  <Box sx={{ display: 'flex', alignItems: 'center', mb: 3 }}>
-                    <Avatar
-                      src={grade.image}
-                      sx={{ width: 60, height: 60, mr: 2 }}
-                    >
-                      {grade.studentName.split(' ').map(n => n[0]).join('')}
-                    </Avatar>
-                    <Box sx={{ flexGrow: 1 }}>
-                      <Typography variant="h6" component="h2" gutterBottom>
-                        {grade.studentName}
-                      </Typography>
-                      <Typography variant="body2" color="text.secondary">
-                        {grade.studentId}
-                      </Typography>
-                      <Typography variant="body2" color="text.secondary">
-                        {grade.course}
-                      </Typography>
+                    <Typography variant="h6" gutterBottom>{g.level}</Typography>
+                    <Box sx={{ display: 'flex', justifyContent: 'space-between', mb: 2 }}>
+                      <Chip label={`${g.students} Students`} size="small" />
+                      <Chip label={`Avg GPA: ${g.averageGpa}`} color={getGPAColor(g.averageGpa)} size="small" />
                     </Box>
-                  </Box>
-
-                  {/* Course Info */}
-                  <Box sx={{ mb: 2 }}>
-                    <Box sx={{ display: 'flex', alignItems: 'center', mb: 1 }}>
-                      <BookIcon fontSize="small" sx={{ mr: 1, color: 'text.secondary' }} />
-                      <Typography variant="body2" color="text.secondary">
-                        {grade.course}
-                      </Typography>
-                    </Box>
-                    <Box sx={{ display: 'flex', alignItems: 'center', mb: 1 }}>
-                      <PersonIcon fontSize="small" sx={{ mr: 1, color: 'text.secondary' }} />
-                      <Typography variant="body2" color="text.secondary">
-                        {grade.instructor}
-                      </Typography>
-                    </Box>
-                    <Box sx={{ display: 'flex', alignItems: 'center', mb: 1 }}>
-                      <CalendarIcon fontSize="small" sx={{ mr: 1, color: 'text.secondary' }} />
-                      <Typography variant="body2" color="text.secondary">
-                        {grade.semester}
-                      </Typography>
-                    </Box>
-                  </Box>
-
                   <Divider sx={{ my: 2 }} />
-
-                  {/* Final Grade and GPA */}
-                  <Box sx={{ mb: 3 }}>
-                    <Grid container spacing={2}>
-                      <Grid item xs={6}>
-                        <Box sx={{ textAlign: 'center' }}>
-                          <Typography variant="h4" color={getGradeColor(grade.finalGrade)}>
-                            {grade.finalGrade}
-                          </Typography>
-                          <Typography variant="caption" color="text.secondary">
-                            Final Grade
-                          </Typography>
-                        </Box>
-                      </Grid>
-                      <Grid item xs={6}>
-                        <Box sx={{ textAlign: 'center' }}>
-                          <Typography variant="h4" color={getGPAColor(grade.gpa)}>
-                            {grade.gpa}
-                          </Typography>
-                          <Typography variant="caption" color="text.secondary">
-                            GPA
-                          </Typography>
-                        </Box>
-                      </Grid>
-                    </Grid>
-                  </Box>
-
-                  {/* Weighted Score */}
-                  <Box sx={{ mb: 2 }}>
-                    <Box sx={{ display: 'flex', justifyContent: 'space-between', mb: 1 }}>
                       <Typography variant="body2" color="text.secondary">
-                        Weighted Score
-                      </Typography>
-                      <Typography variant="body2" color="text.secondary">
-                        {calculateWeightedScore(grade.assignments).toFixed(1)}%
-                      </Typography>
-                    </Box>
-                    <LinearProgress
-                      variant="determinate"
-                      value={calculateWeightedScore(grade.assignments)}
-                      sx={{ height: 8, borderRadius: 4 }}
-                    />
-                  </Box>
-
-                  {/* Assignment Breakdown */}
-                  <Box sx={{ mb: 2 }}>
-                    <Typography variant="subtitle2" gutterBottom>
-                      Assignment Breakdown
+                      Top Course: {g.topCourse}
                     </Typography>
-                    <List dense>
-                      {grade.assignments.map((assignment, index) => (
-                        <ListItem key={index} sx={{ px: 0 }}>
-                          <ListItemText
-                            primary={assignment.name}
-                            secondary={`${assignment.score}/${assignment.maxScore} (${(assignment.weight * 100).toFixed(0)}%)`}
-                          />
-                          <Box sx={{ textAlign: 'right' }}>
-                            <Typography variant="body2" color="primary">
-                              {((assignment.score / assignment.maxScore) * 100).toFixed(1)}%
-                            </Typography>
-                          </Box>
-                        </ListItem>
-                      ))}
-                    </List>
-                  </Box>
-
-                  {/* Last Updated */}
-                  <Box sx={{ mt: 'auto' }}>
                     <Typography variant="caption" color="text.secondary">
-                      Last updated: {new Date(grade.lastUpdated).toLocaleDateString()}
+                      Updated: {new Date(g.lastUpdated).toLocaleDateString()}
                     </Typography>
-                  </Box>
                 </CardContent>
-
-                <CardActions sx={{ p: 2, pt: 0 }}>
-                  <Button size="small" variant="outlined" startIcon={<ViewIcon />} fullWidth>
-                    View Details
-                  </Button>
-                  {(user?.role === 'admin' || user?.role === 'teacher') && (
-                    <>
-                      <Button size="small" variant="outlined" startIcon={<EditIcon />} fullWidth>
-                        Edit Grades
-                      </Button>
-                      <Button size="small" variant="outlined" startIcon={<DownloadIcon />} fullWidth>
-                        Export
-                      </Button>
-                    </>
-                  )}
-                </CardActions>
               </Card>
             </Grid>
           ))}
@@ -426,86 +218,25 @@ const Grades = () => {
           <Table>
             <TableHead>
               <TableRow>
-                <TableCell>Student</TableCell>
-                <TableCell>Course</TableCell>
-                <TableCell>Instructor</TableCell>
-                <TableCell>Semester</TableCell>
-                <TableCell>Final Grade</TableCell>
-                <TableCell>GPA</TableCell>
-                <TableCell>Weighted Score</TableCell>
-                <TableCell>Actions</TableCell>
+                <TableCell>Grade Level</TableCell>
+                <TableCell>Students</TableCell>
+                <TableCell>Average GPA</TableCell>
+                <TableCell>Top Course</TableCell>
+                <TableCell>Updated</TableCell>
               </TableRow>
             </TableHead>
             <TableBody>
-              {filteredGrades.map((grade) => (
-                <TableRow key={grade.id}>
+              {visibleSummaries
+                .filter(g => g.level.toLowerCase().includes(searchTerm.toLowerCase()) || g.topCourse.toLowerCase().includes(searchTerm.toLowerCase()))
+                .map((g) => (
+                  <TableRow key={g.id}>
+                    <TableCell>{g.level}</TableCell>
+                    <TableCell>{g.students}</TableCell>
                   <TableCell>
-                    <Box sx={{ display: 'flex', alignItems: 'center' }}>
-                      <Avatar src={grade.image} sx={{ mr: 2 }}>
-                        {grade.studentName.split(' ').map(n => n[0]).join('')}
-                      </Avatar>
-                      <Box>
-                        <Typography variant="subtitle2">
-                          {grade.studentName}
-                        </Typography>
-                        <Typography variant="caption" color="text.secondary">
-                          {grade.studentId}
-                        </Typography>
-                      </Box>
-                    </Box>
+                      <Chip label={g.averageGpa} color={getGPAColor(g.averageGpa)} size="small" />
                   </TableCell>
-                  <TableCell>{grade.course}</TableCell>
-                  <TableCell>{grade.instructor}</TableCell>
-                  <TableCell>{grade.semester}</TableCell>
-                  <TableCell>
-                    <Chip
-                      label={grade.finalGrade}
-                      color={getGradeColor(grade.finalGrade)}
-                      size="small"
-                    />
-                  </TableCell>
-                  <TableCell>
-                    <Typography color={getGPAColor(grade.gpa)}>
-                      {grade.gpa}
-                    </Typography>
-                  </TableCell>
-                  <TableCell>
-                    <Box sx={{ display: 'flex', alignItems: 'center' }}>
-                      <Box sx={{ width: '100%', mr: 1 }}>
-                        <LinearProgress
-                          variant="determinate"
-                          value={calculateWeightedScore(grade.assignments)}
-                          sx={{ height: 8, borderRadius: 4 }}
-                        />
-                      </Box>
-                      <Typography variant="body2" color="text.secondary">
-                        {calculateWeightedScore(grade.assignments).toFixed(1)}%
-                      </Typography>
-                    </Box>
-                  </TableCell>
-                  <TableCell>
-                    <Box sx={{ display: 'flex', gap: 0.5 }}>
-                      <Tooltip title="View Details">
-                        <IconButton size="small">
-                          <ViewIcon fontSize="small" />
-                        </IconButton>
-                      </Tooltip>
-                      {(user?.role === 'admin' || user?.role === 'teacher') && (
-                        <>
-                          <Tooltip title="Edit Grades">
-                            <IconButton size="small">
-                              <EditIcon fontSize="small" />
-                            </IconButton>
-                          </Tooltip>
-                          <Tooltip title="Export">
-                            <IconButton size="small">
-                              <DownloadIcon fontSize="small" />
-                            </IconButton>
-                          </Tooltip>
-                        </>
-                      )}
-                    </Box>
-                  </TableCell>
+                    <TableCell>{g.topCourse}</TableCell>
+                    <TableCell>{new Date(g.lastUpdated).toLocaleDateString()}</TableCell>
                 </TableRow>
               ))}
             </TableBody>
@@ -513,22 +244,7 @@ const Grades = () => {
         </TableContainer>
       )}
 
-      {/* Add Grade Dialog */}
-      <Dialog open={openDialog} onClose={handleCloseDialog} maxWidth="md" fullWidth>
-        <DialogTitle>Add New Grade Entry</DialogTitle>
-        <DialogContent>
-          <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
-            Create a new grade entry for a student.
-        </Typography>
-          {/* Add form fields here */}
-        </DialogContent>
-        <DialogActions>
-          <Button onClick={handleCloseDialog}>Cancel</Button>
-          <Button variant="contained" onClick={handleCloseDialog}>
-            Add Grade
-          </Button>
-        </DialogActions>
-      </Dialog>
+      {/* Real data only; admin grade creation UI can be added later */}
     </Box>
   );
 };

@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useMemo, useState, useEffect } from 'react';
 import {
   Box,
   Grid,
@@ -23,7 +23,10 @@ import {
   DialogActions,
   Rating,
   LinearProgress,
-  Divider
+  Divider,
+  Tabs,
+  Tab,
+  Alert
 } from '@mui/material';
 import {
   Add as AddIcon,
@@ -38,6 +41,7 @@ import {
   Visibility as ViewIcon
 } from '@mui/icons-material';
 import { useAuth } from '../../contexts/AuthContext';
+import { coursesAPI } from '../../services/api';
 
 const Courses = () => {
   const { user } = useAuth();
@@ -45,52 +49,146 @@ const Courses = () => {
   const [filterCategory, setFilterCategory] = useState('all');
   const [filterLevel, setFilterLevel] = useState('all');
   const [openDialog, setOpenDialog] = useState(false);
+  const [tab, setTab] = useState(0);
+  const isAdmin = user?.role === 'admin';
+  const isStudent = user?.role === 'student';
 
-  // Mock data - replace with actual API calls
-  const courses = [
-    {
-      id: 1,
-      title: 'Advanced Mathematics',
-      description: 'Comprehensive course covering calculus, linear algebra, and mathematical analysis.',
-      category: 'Mathematics',
-      level: 'Advanced',
-      instructor: 'Dr. Sarah Johnson',
-      students: 24,
-      rating: 4.8,
-      progress: 75,
-      image: 'https://source.unsplash.com/300x200/?mathematics',
-      startDate: '2024-01-15',
-      duration: '16 weeks'
-    },
-    {
-      id: 2,
-      title: 'Computer Science Fundamentals',
-      description: 'Introduction to programming, algorithms, and data structures.',
-      category: 'Computer Science',
-      level: 'Beginner',
-      instructor: 'Prof. Michael Chen',
-      students: 32,
-      rating: 4.6,
-      progress: 60,
-      image: 'https://source.unsplash.com/300x200/?computer-science',
-      startDate: '2024-01-20',
-      duration: '12 weeks'
-    },
-    {
-      id: 3,
-      title: 'English Literature',
-      description: 'Study of classic and contemporary literature from various periods.',
-      category: 'Humanities',
-      level: 'Intermediate',
-      instructor: 'Dr. Emily Davis',
-      students: 18,
-      rating: 4.9,
-      progress: 45,
-      image: 'https://source.unsplash.com/300x200/?literature',
-      startDate: '2024-02-01',
-      duration: '14 weeks'
+  const [courses, setCourses] = useState([]);
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState('');
+  const [success, setSuccess] = useState('');
+
+  // Admin CRUD state
+  const [adminDialogOpen, setAdminDialogOpen] = useState(false);
+  const [adminEditMode, setAdminEditMode] = useState(false);
+  const [adminSubmitting, setAdminSubmitting] = useState(false);
+  const [formData, setFormData] = useState({
+    title: '',
+    code: '',
+    description: '',
+    credits: 3,
+    duration: 12,
+    level: 'beginner',
+    subject: '',
+    maxCapacity: 30,
+    fee: 0
+  });
+  const [editingCourseId, setEditingCourseId] = useState(null);
+
+  const loadCourses = async () => {
+    try {
+      setLoading(true);
+      setError('');
+      const params = {};
+      if (filterCategory !== 'all') params.subject = filterCategory;
+      if (filterLevel !== 'all') params.level = filterLevel;
+      if (searchTerm) params.search = searchTerm;
+      const res = await coursesAPI.getCourses(params);
+      const list = Array.isArray(res.data?.courses) ? res.data.courses : (Array.isArray(res.data) ? res.data : []);
+      setCourses(list.map((c) => ({
+        id: c.id || c._id || c.code || Math.random().toString(36).slice(2),
+        title: c.title,
+        description: c.description,
+        category: c.subject || c.category,
+        level: c.level,
+        instructor: c.instructorId ? `${c.instructorId.firstName} ${c.instructorId.lastName}` : c.instructor || '—',
+        students: (c.enrolledStudents && c.enrolledStudents.length) || c.students || 0,
+        rating: (c.rating && typeof c.rating === 'object') ? (Number(c.rating.average) || 0) : (Number(c.rating) || 0),
+        progress: 0,
+        image: c.image || 'https://source.unsplash.com/300x200/?education',
+        startDate: c.startDate || '',
+        duration: c.duration ? `${c.duration} weeks` : c.durationText || ''
+      })));
+    } catch (e) {
+      setError('Failed to load courses');
+    } finally {
+      setLoading(false);
     }
-  ];
+  };
+
+  useEffect(() => {
+    const load = async () => {
+      await loadCourses();
+    };
+    load();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [filterCategory, filterLevel]);
+
+  const openAdminCreate = () => {
+    setAdminEditMode(false);
+    setEditingCourseId(null);
+    setFormData({
+      title: '', code: '', description: '', credits: 3, duration: 12,
+      level: 'beginner', subject: '', maxCapacity: 30, fee: 0
+    });
+    setAdminDialogOpen(true);
+  };
+
+  const openAdminEdit = (course) => {
+    setAdminEditMode(true);
+    setEditingCourseId(course.id);
+    setFormData({
+      title: course.title || '',
+      code: course.code || '',
+      description: course.description || '',
+      credits: Number(course.credits) || 3,
+      duration: Number((course.duration || '').toString().split(' ')[0]) || 12,
+      level: (course.level || 'beginner').toLowerCase(),
+      subject: course.category || '',
+      maxCapacity: Number(course.maxCapacity) || 30,
+      fee: Number(course.fee) || 0
+    });
+    setAdminDialogOpen(true);
+  };
+
+  const handleAdminDelete = async (course) => {
+    if (!window.confirm(`Delete course "${course.title}"?`)) return;
+    try {
+      await coursesAPI.deleteCourse(course.id);
+      setSuccess('Course deleted');
+      await loadCourses();
+      setTimeout(() => setSuccess(''), 2000);
+    } catch (_) {
+      setError('Failed to delete course');
+    }
+  };
+
+  const handleAdminSubmit = async (e) => {
+    e.preventDefault();
+    try {
+      setAdminSubmitting(true);
+      setError('');
+      if (adminEditMode) {
+        await coursesAPI.updateCourse(editingCourseId, formData);
+        setSuccess('Course updated');
+      } else {
+        await coursesAPI.createCourse(formData);
+        setSuccess('Course created');
+      }
+      setAdminDialogOpen(false);
+      await loadCourses();
+      setTimeout(() => setSuccess(''), 2000);
+    } catch (_) {
+      setError('Failed to save course');
+    } finally {
+      setAdminSubmitting(false);
+    }
+  };
+
+  const [myCourseIds, setMyCourseIds] = useState([]);
+  useEffect(() => {
+    const loadMine = async () => {
+      if (!isStudent) return;
+      try {
+        const res = await coursesAPI.getCourses({ page: 1, limit: 1000 });
+        const list = Array.isArray(res.data?.courses) ? res.data.courses : [];
+        const mine = list.filter(c => Array.isArray(c.enrolledStudents) && c.enrolledStudents.some(s => s === user?.id || s?._id === user?.id));
+        setMyCourseIds(mine.map(m => m.id || m._id));
+      } catch (_) {}
+    };
+    loadMine();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [isStudent]);
 
   const categories = ['all', 'Mathematics', 'Computer Science', 'Humanities', 'Sciences', 'Arts'];
   const levels = ['all', 'Beginner', 'Intermediate', 'Advanced'];
@@ -104,6 +202,23 @@ const Courses = () => {
     return matchesSearch && matchesCategory && matchesLevel;
   });
 
+  const myCourses = useMemo(() => filteredCourses.filter(c => myCourseIds.includes(c.id)), [filteredCourses, myCourseIds]);
+  const toggleEnroll = async (courseId) => {
+    try {
+      const isEnrolled = myCourseIds.includes(courseId);
+      if (isEnrolled) {
+        await coursesAPI.unenrollCourse(courseId);
+        setMyCourseIds(prev => prev.filter(id => id !== courseId));
+      } else {
+        await coursesAPI.enrollCourse(courseId);
+        setMyCourseIds(prev => [...prev, courseId]);
+      }
+    } catch (e) {
+      // eslint-disable-next-line no-alert
+      alert('Action failed');
+    }
+  };
+
   const handleAddCourse = () => {
     setOpenDialog(true);
   };
@@ -115,7 +230,7 @@ const Courses = () => {
   return (
     <Box sx={{ p: 3 }}>
       {/* Header */}
-      <Box sx={{ mb: 4, display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+      <Box sx={{ mb: 2, display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
     <Box>
       <Typography variant="h4" component="h1" gutterBottom>
         Courses
@@ -124,17 +239,31 @@ const Courses = () => {
             Manage and explore all available courses
           </Typography>
         </Box>
-        {user?.role === 'admin' && (
+        {isAdmin && (
           <Fab
             color="primary"
             aria-label="add course"
-            onClick={handleAddCourse}
+            onClick={openAdminCreate}
             sx={{ boxShadow: 3 }}
           >
             <AddIcon />
           </Fab>
         )}
       </Box>
+      {success && (
+        <Alert severity="success" sx={{ mb: 2 }} onClose={() => setSuccess('')}>{success}</Alert>
+      )}
+      {error && !loading && (
+        <Alert severity="error" sx={{ mb: 2 }} onClose={() => setError('')}>{error}</Alert>
+      )}
+      {isStudent && (
+        <Box sx={{ mb: 2 }}>
+          <Tabs value={tab} onChange={(e, v) => setTab(v)}>
+            <Tab label="All Courses" />
+            <Tab label="My Courses" />
+          </Tabs>
+        </Box>
+      )}
 
       {/* Search and Filters */}
       <Box sx={{ mb: 4 }}>
@@ -200,8 +329,14 @@ const Courses = () => {
       </Box>
 
       {/* Course Grid */}
+      {error && (
+        <Typography color="error" sx={{ mb: 2 }}>{error}</Typography>
+      )}
+      {loading && (
+        <Typography sx={{ mb: 2 }}>Loading courses...</Typography>
+      )}
       <Grid container spacing={3}>
-        {filteredCourses.map((course) => (
+        {(isStudent && tab === 1 ? myCourses : filteredCourses).map((course) => (
           <Grid item xs={12} sm={6} md={4} key={course.id}>
             <Card sx={{ height: '100%', display: 'flex', flexDirection: 'column', boxShadow: 3 }}>
               <Box
@@ -222,15 +357,15 @@ const Courses = () => {
                     gap: 1
                   }}
                 >
-                  {user?.role === 'admin' && (
+                  {isAdmin && (
                     <>
                       <Tooltip title="Edit Course">
-                        <IconButton size="small" sx={{ bgcolor: 'rgba(255,255,255,0.9)' }}>
+                        <IconButton size="small" sx={{ bgcolor: 'rgba(255,255,255,0.9)' }} onClick={() => openAdminEdit(course)}>
                           <EditIcon fontSize="small" />
                         </IconButton>
                       </Tooltip>
                       <Tooltip title="Delete Course">
-                        <IconButton size="small" sx={{ bgcolor: 'rgba(255,255,255,0.9)' }}>
+                        <IconButton size="small" sx={{ bgcolor: 'rgba(255,255,255,0.9)' }} onClick={() => handleAdminDelete(course)}>
                           <DeleteIcon fontSize="small" />
                         </IconButton>
                       </Tooltip>
@@ -303,7 +438,7 @@ const Courses = () => {
                   </Typography>
                 </Box>
 
-                {user?.role === 'student' && (
+                {isStudent && (
                   <Box sx={{ mt: 2 }}>
                     <Box sx={{ display: 'flex', justifyContent: 'space-between', mb: 1 }}>
                       <Typography variant="body2" color="text.secondary">
@@ -323,13 +458,14 @@ const Courses = () => {
               </CardContent>
 
               <CardActions sx={{ p: 2, pt: 0 }}>
-                {user?.role === 'student' ? (
-                  <Button size="small" variant="contained" fullWidth>
-                    Continue Learning
+                {isStudent && (
+                  <Button size="small" variant={myCourseIds.includes(course.id) ? 'outlined' : 'contained'} fullWidth onClick={() => toggleEnroll(course.id)}>
+                    {myCourseIds.includes(course.id) ? 'Remove from My Courses' : 'Add to My Courses'}
                   </Button>
-                ) : (
+                )}
+                {isAdmin && (
                   <Button size="small" variant="outlined" fullWidth>
-                    View Details
+                    Manage Access
                   </Button>
                 )}
               </CardActions>
@@ -353,6 +489,55 @@ const Courses = () => {
             Create Course
           </Button>
         </DialogActions>
+      </Dialog>
+
+      {/* Admin Create/Edit Course Dialog */}
+      <Dialog open={adminDialogOpen} onClose={() => setAdminDialogOpen(false)} maxWidth="sm" fullWidth>
+        <DialogTitle>{adminEditMode ? 'Edit Course' : 'Create Course'}</DialogTitle>
+        <form onSubmit={handleAdminSubmit}>
+          <DialogContent>
+            <Grid container spacing={2}>
+              <Grid item xs={12}>
+                <TextField fullWidth required label="Title" value={formData.title} onChange={(e) => setFormData({ ...formData, title: e.target.value })} />
+              </Grid>
+              <Grid item xs={12} sm={6}>
+                <TextField fullWidth required label="Code" value={formData.code} onChange={(e) => setFormData({ ...formData, code: e.target.value })} />
+              </Grid>
+              <Grid item xs={12} sm={6}>
+                <FormControl fullWidth required>
+                  <InputLabel>Level</InputLabel>
+                  <Select value={formData.level} label="Level" onChange={(e) => setFormData({ ...formData, level: e.target.value })}>
+                    <MenuItem value="beginner">Beginner</MenuItem>
+                    <MenuItem value="intermediate">Intermediate</MenuItem>
+                    <MenuItem value="advanced">Advanced</MenuItem>
+                  </Select>
+                </FormControl>
+              </Grid>
+              <Grid item xs={12} sm={6}>
+                <TextField fullWidth required type="number" label="Credits" value={formData.credits} onChange={(e) => setFormData({ ...formData, credits: Number(e.target.value) })} />
+              </Grid>
+              <Grid item xs={12} sm={6}>
+                <TextField fullWidth required type="number" label="Duration (weeks)" value={formData.duration} onChange={(e) => setFormData({ ...formData, duration: Number(e.target.value) })} />
+              </Grid>
+              <Grid item xs={12} sm={6}>
+                <TextField fullWidth required label="Subject/Category" value={formData.subject} onChange={(e) => setFormData({ ...formData, subject: e.target.value })} />
+              </Grid>
+              <Grid item xs={12} sm={6}>
+                <TextField fullWidth required type="number" label="Max Capacity" value={formData.maxCapacity} onChange={(e) => setFormData({ ...formData, maxCapacity: Number(e.target.value) })} />
+              </Grid>
+              <Grid item xs={12} sm={6}>
+                <TextField fullWidth required type="number" label="Fee" value={formData.fee} onChange={(e) => setFormData({ ...formData, fee: Number(e.target.value) })} />
+              </Grid>
+              <Grid item xs={12}>
+                <TextField fullWidth multiline minRows={3} label="Description" value={formData.description} onChange={(e) => setFormData({ ...formData, description: e.target.value })} />
+              </Grid>
+            </Grid>
+          </DialogContent>
+          <DialogActions>
+            <Button onClick={() => setAdminDialogOpen(false)}>Cancel</Button>
+            <Button type="submit" variant="contained" disabled={adminSubmitting}>{adminEditMode ? 'Update' : 'Create'}</Button>
+          </DialogActions>
+        </form>
       </Dialog>
     </Box>
   );

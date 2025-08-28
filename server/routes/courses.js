@@ -1,13 +1,15 @@
 const express = require('express');
 const { body, validationResult } = require('express-validator');
+const { Op } = require('sequelize');
 const Course = require('../models/Course');
 const User = require('../models/User');
+const CourseEnrollment = require('../models/CourseEnrollment');
 const { authenticateToken, authorizeRoles } = require('../middleware/auth');
 
 const router = express.Router();
 
-// Get all courses
-router.get('/', authenticateToken, async (req, res) => {
+// Get all courses (public)
+router.get('/', async (req, res) => {
   try {
     const { 
       search, 
@@ -16,38 +18,46 @@ router.get('/', authenticateToken, async (req, res) => {
       instructor, 
       status, 
       page = 1, 
-      limit = 10 
+      limit = 10,
     } = req.query;
     
-    const filter = {};
+    const where = {};
     if (search) {
-      filter.$or = [
-        { title: { $regex: search, $options: 'i' } },
-        { description: { $regex: search, $options: 'i' } },
-        { code: { $regex: search, $options: 'i' } },
+      where[Op.or] = [
+        { title: { [Op.iLike]: `%${search}%` } },
+        { description: { [Op.iLike]: `%${search}%` } },
+        { code: { [Op.iLike]: `%${search}%` } },
       ];
     }
-    if (subject) filter.subject = subject;
-    if (level) filter.level = level;
-    if (instructor) filter.instructorId = instructor;
-    if (status) filter.status = status;
+    if (subject) {
+      // Map client subject filter to model's category when provided
+      where.category = subject;
+    }
+    if (level) {
+      where.level = String(level).toLowerCase();
+    }
+    if (status) {
+      where.status = status;
+    }
+    if (instructor) {
+      where.instructorId = instructor;
+    }
 
-    const skip = (page - 1) * limit;
-    const courses = await Course.find(filter)
-      .populate('instructorId', 'firstName lastName email')
-      .skip(skip)
-      .limit(parseInt(limit))
-      .sort({ createdAt: -1 });
-
-    const total = await Course.countDocuments(filter);
+    const offset = (parseInt(page) - 1) * parseInt(limit);
+    const { rows, count } = await Course.findAndCountAll({
+      where,
+      order: [['createdAt', 'DESC']],
+      offset,
+      limit: parseInt(limit),
+    });
 
     res.json({
-      courses,
+      courses: rows,
       pagination: {
         page: parseInt(page),
         limit: parseInt(limit),
-        total,
-        pages: Math.ceil(total / limit),
+        total: count,
+        pages: Math.ceil(count / parseInt(limit)),
       },
     });
   } catch (error) {
@@ -56,17 +66,13 @@ router.get('/', authenticateToken, async (req, res) => {
   }
 });
 
-// Get course by ID
-router.get('/:id', authenticateToken, async (req, res) => {
+// Get course by ID (public)
+router.get('/:id', async (req, res) => {
   try {
-    const course = await Course.findById(req.params.id)
-      .populate('instructorId', 'firstName lastName email phone')
-      .populate('prerequisites', 'title code description');
-
+    const course = await Course.findByPk(req.params.id);
     if (!course) {
       return res.status(404).json({ message: 'Course not found' });
     }
-
     res.json(course);
   } catch (error) {
     console.error('Error fetching course:', error);
@@ -197,33 +203,18 @@ router.delete('/:id', authenticateToken, authorizeRoles(['admin', 'teacher']), a
 // Enroll student in course
 router.post('/:id/enroll', authenticateToken, authorizeRoles(['student', 'admin']), async (req, res) => {
   try {
-    const course = await Course.findById(req.params.id);
-    if (!course) {
-      return res.status(404).json({ message: 'Course not found' });
-    }
+    const course = await Course.findByPk(req.params.id);
+    if (!course) return res.status(404).json({ message: 'Course not found' });
 
     const studentId = req.user.role === 'student' ? req.user.id : req.body.studentId;
-    
-    if (!studentId) {
-      return res.status(400).json({ message: 'Student ID is required' });
-    }
+    if (!studentId) return res.status(400).json({ message: 'Student ID is required' });
 
-    // Verify student exists
-    const student = await User.findById(studentId);
-    if (!student || student.role !== 'student') {
-      return res.status(400).json({ message: 'Invalid student' });
-    }
+    const student = await User.findByPk(studentId);
+    if (!student || student.role !== 'student') return res.status(400).json({ message: 'Invalid student' });
 
-    const result = await course.enrollStudent(studentId);
-    
-    if (result.success) {
-      res.json({ 
-        message: 'Enrolled successfully',
-        course: result.course 
-      });
-    } else {
-      res.status(400).json({ message: result.message });
-    }
+    await CourseEnrollment.findOrCreate({ where: { courseId: course.id, studentId } });
+    await course.enrollStudent();
+    res.json({ message: 'Enrolled successfully' });
   } catch (error) {
     console.error('Error enrolling student:', error);
     res.status(500).json({ message: 'Internal server error' });
@@ -233,27 +224,15 @@ router.post('/:id/enroll', authenticateToken, authorizeRoles(['student', 'admin'
 // Unenroll student from course
 router.post('/:id/unenroll', authenticateToken, authorizeRoles(['student', 'admin']), async (req, res) => {
   try {
-    const course = await Course.findById(req.params.id);
-    if (!course) {
-      return res.status(404).json({ message: 'Course not found' });
-    }
+    const course = await Course.findByPk(req.params.id);
+    if (!course) return res.status(404).json({ message: 'Course not found' });
 
     const studentId = req.user.role === 'student' ? req.user.id : req.body.studentId;
-    
-    if (!studentId) {
-      return res.status(400).json({ message: 'Student ID is required' });
-    }
+    if (!studentId) return res.status(400).json({ message: 'Student ID is required' });
 
-    const result = await course.unenrollStudent(studentId);
-    
-    if (result.success) {
-      res.json({ 
-        message: 'Unenrolled successfully',
-        course: result.course 
-      });
-    } else {
-      res.status(400).json({ message: result.message });
-    }
+    await CourseEnrollment.destroy({ where: { courseId: course.id, studentId } });
+    await course.unenrollStudent();
+    res.json({ message: 'Unenrolled successfully' });
   } catch (error) {
     console.error('Error unenrolling student:', error);
     res.status(500).json({ message: 'Internal server error' });
@@ -303,12 +282,9 @@ router.get('/instructor/:instructorId', authenticateToken, async (req, res) => {
 // Get student's enrolled courses
 router.get('/student/enrolled', authenticateToken, authorizeRoles(['student']), async (req, res) => {
   try {
-    const courses = await Course.find({ 
-      enrolledStudents: req.user.id 
-    })
-    .populate('instructorId', 'firstName lastName email')
-    .sort({ createdAt: -1 });
-
+    const mine = await CourseEnrollment.findAll({ where: { studentId: req.user.id } });
+    const courseIds = mine.map(m => m.courseId);
+    const courses = await Course.findAll({ where: { id: courseIds }, order: [['createdAt', 'DESC']] });
     res.json(courses);
   } catch (error) {
     console.error('Error fetching enrolled courses:', error);

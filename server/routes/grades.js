@@ -7,6 +7,9 @@ const { authorizeTeacher, authorizeResource } = require('../middleware/auth');
 
 const router = express.Router();
 
+// Mixed-ORM import: use Sequelize User model for grade-level summaries
+const { User: SequelizeUser } = require('../models');
+
 // Get grades
 router.get('/', async (req, res) => {
   try {
@@ -625,6 +628,30 @@ router.post('/:id/dispute', async (req, res) => {
         details: error.message
       }
     });
+  }
+});
+
+// Grade level summaries (real data)
+router.get('/summary', async (req, res) => {
+  try {
+    const { level } = req.query;
+    const where = { role: 'student' };
+    if (level) where.grade = level;
+
+    const students = await SequelizeUser.findAll({ where });
+
+    // Aggregate real counts by grade; GPA/topCourse placeholders until grade model linkage is defined
+    const byGrade = {};
+    students.forEach((s) => {
+      const key = s.grade || 'Unassigned';
+      if (!byGrade[key]) byGrade[key] = { level: key, students: 0, averageGpa: 0, topCourse: '-', lastUpdated: new Date().toISOString() };
+      byGrade[key].students += 1;
+    });
+
+    const summaries = Object.values(byGrade).sort((a, b) => a.level.localeCompare(b.level));
+    res.json({ summaries });
+  } catch (error) {
+    res.status(500).json({ message: 'Failed to compute grade summaries', error: error.message });
   }
 });
 
